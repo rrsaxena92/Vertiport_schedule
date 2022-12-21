@@ -1,6 +1,7 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 seedUsed = rng;
+saveFile = 0;
 %% Vertiport graph
 d1 = 5;  %input("Enter the diagonal length of the Group 1 UAV in m");
 d2 = 8;  %input("Enter the diagonal length of the Group 2 UAV in m");
@@ -44,7 +45,6 @@ F=Twake.*FT;
 
 cooling_time=[2 4 6 8 10];
 
-topo_1_dir_2
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 %% FLight set
 
@@ -53,12 +53,11 @@ operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
-num_flight = 5;
 flight_req_time = randi(60,[num_flight,1]);
 
-flight_set(num_flight,1) = flight_set_struct; 
-arr_flight_set = []; 
-dep_flight_set = []; 
+flight_set(num_flight,1) = flight_set_struct;
+arr_flight_set = [];
+dep_flight_set = [];
 
 for f = 1:num_flight
     q = randi(length(flight_class));
@@ -125,11 +124,13 @@ flight_name_set_0 = [flight_0.name , flight_set.name];
 fprintf("Num flights %d, dep %d arr %d \n", num_flight, length(dep_flight_set), length(arr_flight_set))
 %% Parameters
 
-W_r = 7;
-W_q = 2;
-Wa_c = 3;
-Wd_c = 3;
-W_g = 1;
+W_r  = 10;  % Weight for time spent on TLOF after landing
+W_q  = 10;  % Weight for time spent on TLOF before takeoff
+Wa_c = 7;  % Weight for time spent on fix direction by arrival flight
+Wd_c = 7;  % Weight for time spent on fix direction by departure flight
+W_g  = 2;  % Weight for time spent waiting on gate by departure flight
+Wa_t = 8; % Weight for time spent waiting on taxiing by departure flight
+Wd_t = 8; % Weight for time spent waiting on taxiing by arrival flight
 
 M = 200;
 
@@ -166,7 +167,7 @@ for f = 1:length(arr_flight_set)
     taxiTimeArr(i) = t_iu(i,uiki) - t_iu(i,ui1);
 end
 
-QtaxiTimeArr = sum(taxiTimeArr);
+QtaxiTimeArr = Wa_t*sum(taxiTimeArr);
 
 Landtime = optimexpr(1,arr_name_set);
 for f = 1:length(arr_flight_set)
@@ -197,7 +198,7 @@ for f = 1:length(dep_flight_set)
     taxiTimeDep(i) = t_iu(i,uiki) - t_iu(i,g);
 end
 
-QtaxiTimeDep = sum(taxiTimeDep);
+QtaxiTimeDep = Wd_t*sum(taxiTimeDep);
 
 takeOfftime = optimexpr(1,dep_name_set);
 for f = 1:length(dep_flight_set)
@@ -220,7 +221,7 @@ end
 
 QClimb = Wd_c*sum(climbTime);
 
-vertiOpt.Objective = Qapproach + QLand + QtaxiTimeArr + Qtaxiout + QtaxiTimeDep + QtakeOff + QClimb;
+vertiOpt.Objective = (Qapproach + QLand + QtaxiTimeArr + Qtaxiout + QtaxiTimeDep + QtakeOff + QClimb)/10;
 
 %% Constraints
 fprintf("Formulating constraints.....");
@@ -568,22 +569,24 @@ else
     flight_sol = [];
 end
 %% The End
-datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
-folder = "Results";
-if isempty(flight_sol)
-    strctTbl = struct2table(flight_set);
-    filename = "flight_set_" + num2str(num_flight) + '_' + datefmt + ".csv";
+if saveFile
+    datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
+    folder = "Results";
+    if isempty(flight_sol)
+        strctTbl = struct2table(flight_set);
+        filename = "flight_set_" + num2str(num_flight) + '_' + datefmt + ".csv";
+        filePath = folder + "//" + filename;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    else
+        strctTbl = struct2table(flight_sol.flight_sol_set);
+        filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt + ".csv";
+        filePath = folder + "//" + filename;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    end
+    filename = "seed_" + num2str(num_flight) + '_' + datefmt + ".mat";
     filePath = folder + "//" + filename;
-    writetable(strctTbl,filePath,'Delimiter',',');
-else
-    strctTbl = struct2table(flight_sol.flight_sol_set);
-    filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt + ".csv";
-    filePath = folder + "//" + filename;
-    writetable(strctTbl,filePath,'Delimiter',',');
+    save(filePath,'seedUsed');
 end
-filename = "seed_" + num2str(num_flight) + '_' + datefmt + ".mat";
-filePath = folder + "//" + filename;
-save(filePath,'seedUsed');
 %% Functions
 
 function flight_dir = flight_type(flight,nodes)

@@ -96,21 +96,21 @@ function timetaken = zeroDelayTime(flight, Edges)
 
 timeOnTaxi = 0;
 if flight.direction == "arr"
-    timeOnapproach = get_edge_length(flight.edges(1), Edges)/flight.slant_climb_speed-5;
-    timeOnOVF = get_edge_length(flight.edges(2), Edges)/flight.vertical_climb_speed-5;
+    timeOnapproach = (get_edge_length(flight.edges(1), Edges)/flight.slant_climb_speed)-5;
+    timeOnOVF = (get_edge_length(flight.edges(2), Edges)/flight.vertical_climb_speed)-5;
     
     for e = 4:(length(flight.edges)) % Last taxi node to TLOF not counted
-        timeOnTaxi = timeOnTaxi + get_edge_length(flight.edges(e), Edges)/flight.taxi_speed-5;
+        timeOnTaxi = timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed)-5;
     end
     timetaken = [timeOnTaxi, timeOnOVF, timeOnapproach];
     
 else % dep
     for e = 1:(length(flight.edges)-3) % Last taxi node to TLOF not counted
-        timeOnTaxi = timeOnTaxi + get_edge_length(flight.edges(e), Edges)/flight.taxi_speed - 5;
+        timeOnTaxi = timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed) - 5;
     end
     
-    timeOnOVF = get_edge_length(flight.edges(end-1), Edges)/flight.vertical_climb_speed - 5;
-    timeOnclimb = get_edge_length(flight.edges(end), Edges)/flight.slant_climb_speed - 5;
+    timeOnOVF = (get_edge_length(flight.edges(end-1), Edges)/flight.vertical_climb_speed) - 5;
+    timeOnclimb = (get_edge_length(flight.edges(end), Edges)/flight.slant_climb_speed) - 5;
     timetaken = [timeOnTaxi, timeOnOVF, timeOnclimb];
 end
 
@@ -135,7 +135,7 @@ for f1 = 2:length(flight_set_0)
     end
 end
 end
-    
+
 function wake_sep = calc_wake_separationActual(flight_set_0, inputs, t_iu, x_uij)
 
 Nodes = inputs.Nodes;

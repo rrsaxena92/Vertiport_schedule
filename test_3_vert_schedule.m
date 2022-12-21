@@ -2,7 +2,7 @@ clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(8);
 seedUsed = rng;
-
+saveFile = 0;
 %% Vertiport graph
 d1 = 5;  %input("Enter the diagonal length of the Group 1 UAV in m");
 d2 = 8;  %input("Enter the diagonal length of the Group 2 UAV in m");
@@ -17,12 +17,14 @@ max_edge_taxi_speed = 6;
 
 vertical_climb_edge_length_above_TLOF=5*d5; %From TLOF pad to point X
 
-max_vertical_climb_speed = 6; % 20km/hr is 6m/s which is max speed on taxiways and max vertical climb speed
+max_vertical_climb_speed = 8; % 20km/hr is 6m/s which is max speed on taxiways and max vertical climb speed
 
-inclination_climb_edge_length = 17*d5; %From point X to fixed direction
+inclination_climb_edge_length = 20*d5; %From point X to fixed direction
 
 %D is separation distance on taxi where rows are leading and columns are following
 D_sep_taxi = [d1 d2 d3 d4 d5; d2 d2 d3 d4 d5; d3 d3 d3 d4 d5; d4 d4 d4 d4 d5; d5 d5 d5 d5 d5];
+
+D_sep_fix = 15*D_sep_taxi;
 % disp(D);
 
 s = max_edge_taxi_speed;
@@ -95,7 +97,7 @@ flight_path_edges={
 %     };
 %% FLight set
 
-flight_class = {'Super','Jumbo','Medium','Small'};
+flight_class = {'Small','Medium','Jumbo','Super','Ultra'};
 operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
@@ -103,9 +105,9 @@ flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edg
 num_flight = 3;
 flight_req_time = randi(60,[num_flight,1]);
 
-flight_set(num_flight,1) = flight_set_struct; % struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[]);
-arr_flight_set = []; % struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[]);
-dep_flight_set = []; % struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[]);
+flight_set(num_flight,1) = flight_set_struct;
+arr_flight_set = [];
+dep_flight_set = [];
 
 for f = 1:num_flight
     q = randi(length(flight_class));
@@ -123,7 +125,7 @@ for f = 1:num_flight
     flight.nodes = flight_path_nodes{x};
     flight.edges = flight_path_edges{x};
     flight.taxi_speed=max_edge_taxi_speed;
-    flight.vertical_climb_speed=6;
+    flight.vertical_climb_speed=max_vertical_climb_speed;
     flight.slant_climb_speed=17;
     flight.class = find(string(UAM_class(flight))==flight_class,1);
     flight.coolTime = cooling_time(flight.class);
@@ -304,8 +306,8 @@ for f = 1:length(flight_set)
     for e = 1:(length(tmpEdges))
         e_ = split(tmpEdges{e},'-');
         u = e_{1}; v = e_{2};
-        MinEdgeT_uv = max(timeonedge(flight_set(f),tmpEdges{e}, d5) - 5,0); % TODO Different speed
-        MaxEdgeT_uv = min(timeonedge(flight_set(f),tmpEdges{e}, d5) + 5,M); % TODO Different speed
+        MinEdgeT_uv = max(timeonedge(flight_set(f),tmpEdges{e}, Edges.len) - 5,0); % TODO Different speed
+        MaxEdgeT_uv = min(timeonedge(flight_set(f),tmpEdges{e}, Edges.len) + 5,M); % TODO Different speed
         vertiOpt.Constraints.minspeed(i,tmpEdges(e)) = t_iu(i,v) >= t_iu(i,u) + MinEdgeT_uv;
         vertiOpt.Constraints.maxspeed(i,tmpEdges(e)) = t_iu(i,v) <= t_iu(i,u) + MaxEdgeT_uv;
     end
@@ -318,17 +320,6 @@ fprintf(" 1 ");
 % vertiOpt.Constraints.xii   = optimconstr(Nodes.all, flight_name_set_0);
 vertiOpt.Constraints.xsum1 = optimconstr(Nodes.all, flight_name_set_0);
 vertiOpt.Constraints.xsum2 = optimconstr(Nodes.all, flight_name_set_0);
-
-% for n = 1:length(Nodes.all) 
-%     u = Nodes.all(n);
-%     for f = 1:length(flight_set_0)
-%         i = flight_set_0(f).name; % This is a wrong aproach as it add all the flights who are not passing thorught the node
-% %         vertiOpt.Constraints.xii(u,i)   = x_uij(u,i,i) == 0;
-%         vertiOpt.Constraints.xsum1(u,i) = sum(x_uij(u,i,:)) - x_uij(u,i,i) == 1;
-%         vertiOpt.Constraints.xsum2(u,i) = sum(x_uij(u,:,i)) - x_uij(u,i,i) == 1;
-%     end
-% end
-
 
 for n = 1:length(Nodes.all)
     u = Nodes.all(n);
@@ -505,7 +496,11 @@ for f1 = 1:length(flight_set)
                 e_ = split(e,'-');
                 u = e_{1}; v = e_{2};
                 D_uv = get_edge_length(commonEdges{e1},Edges);
-                Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
+                if ismember(e,Edges.dir)
+                    Dsep_ij = D_sep_fix(flight_set(f1).class, flight_set(f2).class);
+                else
+                    Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
+                end
                 vertiOpt.Constraints.taxiSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-x_uij(u,i,j))*M;
             end
         end
@@ -622,18 +617,23 @@ else
     flight_sol = [];
 end
 %% The End
-datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
-folder = "Results//";
-if isempty(flight_sol)
-    strctTbl = struct2table(flight_set);
-    filename = "flight_set_" + num2str(num_flight) + '_' + datefmt + ".csv";
+if saveFile
+    datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
+    folder = "Results";
+    if isempty(flight_sol)
+        strctTbl = struct2table(flight_set);
+        filename = "flight_set_" + num2str(num_flight) + '_' + datefmt + ".csv";
+        filePath = folder + "//" + filename;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    else
+        strctTbl = struct2table(flight_sol.flight_sol_set);
+        filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt + ".csv";
+        filePath = folder + "//" + filename;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    end
+    filename = "seed_" + num2str(num_flight) + '_' + datefmt + ".mat";
     filePath = folder + "//" + filename;
-    writetable(strctTbl,filePath,'Delimiter',',');
-else
-    strctTbl = struct2table(flight_sol.flight_sol_set);
-    filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt + ".csv";
-    filePath = folder + "//" + filename;
-    writetable(strctTbl,filePath,'Delimiter',',');
+    save(filePath,'seedUsed');
 end
 %% Functions
 
@@ -648,25 +648,26 @@ else
 end
 end
 
-function t = timeonedge(flight,edge,d)
+function t = timeonedge(flight,edge,edgeLen)
+
 n=split(edge,'-',1);
 x=string(n(1));
 y=string(n(2));
 if flight.direction == "dep"
     if(x == flight.TLOF)
-        t=(5*d)/flight.vertical_climb_speed;
+        t=(edgeLen(2))/flight.vertical_climb_speed;
     elseif (y == flight.fix_direction)
-        t=(17*d)/flight.slant_climb_speed;
+        t=(edgeLen(3))/flight.slant_climb_speed;
     else
-        t=(3*d)/flight.taxi_speed;
+        t=(edgeLen(1))/flight.taxi_speed;
     end
 elseif flight.direction == "arr"
     if(y == flight.TLOF)
-        t=(5*d)/flight.vertical_climb_speed;
+        t=(edgeLen(2))/flight.vertical_climb_speed;
     elseif (x == flight.fix_direction)
-        t=(17*d)/flight.slant_climb_speed;
+        t=(edgeLen(3))/flight.slant_climb_speed;
     else
-        t=(3*d)/flight.taxi_speed;
+        t=(edgeLen(1))/flight.taxi_speed;
     end
 else
     fprintf("Wrong flight direction for flight %s \n", flight.name);
