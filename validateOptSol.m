@@ -106,11 +106,11 @@ if flight.direction == "arr"
     
 else % dep
     for e = 1:(length(flight.edges)-3) % Last taxi node to TLOF not counted
-        timeOnTaxi = timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed) - 5;
+        timeOnTaxi = max(timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed) - 5,0);
     end
     
-    timeOnOVF = (get_edge_length(flight.edges(end-1), Edges)/flight.vertical_climb_speed) - 5;
-    timeOnclimb = (get_edge_length(flight.edges(end), Edges)/flight.slant_climb_speed) - 5;
+    timeOnOVF = max((get_edge_length(flight.edges(end-1), Edges)/flight.vertical_climb_speed) - 5,0);
+    timeOnclimb = max((get_edge_length(flight.edges(end), Edges)/flight.slant_climb_speed) - 5,0);
     timetaken = [timeOnTaxi, timeOnOVF, timeOnclimb];
 end
 

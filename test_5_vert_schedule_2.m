@@ -1,5 +1,6 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
+rng(26)
 seedUsed = rng;
 saveFile = 1;
 if saveFile
@@ -23,7 +24,9 @@ vertical_climb_edge_length_above_TLOF=5*d5; %From TLOF pad to point X
 
 max_vertical_climb_speed = 8; % 20km/hr is 6m/s which is max speed on taxiways and max vertical climb speed
 
-inclination_climb_edge_length = 20*d5; %From point X to fixed direction
+len_ratio = 10;
+
+inclination_climb_edge_length = (len_ratio-1)*vertical_climb_edge_length_above_TLOF;
 
 %D is separation distance on taxi where rows are leading and columns are following
 D_sep_taxi = [d1 d2 d3 d4 d5; d2 d2 d3 d4 d5; d3 d3 d3 d4 d5; d4 d4 d4 d4 d5; d5 d5 d5 d5 d5];
@@ -50,12 +53,17 @@ F=Twake.*FT;
 
 cooling_time=[2 4 6 8 10];
 
+topo_1_dep_dir_1
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
+
 %% FLight set
 
+flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
+operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
+num_flight = 10;
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -125,6 +133,7 @@ a0 = flight_0.name;
 flight_set_0 = [flight_0 ; flight_set];
 flight_name_set_0 = [flight_0.name , flight_set.name];
 fprintf("Num flights %d, dep %d arr %d \n", num_flight, length(dep_flight_set), length(arr_flight_set))
+
 %% Parameters
 
 W_r  = 10;  % Weight for time spent on TLOF after landing
@@ -456,7 +465,9 @@ for f1 = 1:length(flight_set)
                 else
                     Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
                 end
-                vertiOpt.Constraints.taxiSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-y_uij(u,i,j))*M;
+                if D_uv > 0
+                    vertiOpt.Constraints.taxiSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-y_uij(u,i,j))*M;
+                end
             end
         end
     end
@@ -653,4 +664,3 @@ else
     fprintf(" edge not found %s \n", e{:});
 end
 end
-
