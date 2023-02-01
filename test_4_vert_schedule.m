@@ -1,5 +1,5 @@
 clear
-startTime = datetime; fprintf("Start time %s \n", startTime);
+rng(26)
 seedUsed = rng;
 saveFile = 1;
 if saveFile
@@ -50,12 +50,16 @@ F=Twake.*FT;
 
 cooling_time=[2 4 6 8 10];
 
+topo_1_dep_dir_1
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 %% FLight set
 
+flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
+operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
+num_flight = 10;
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -140,6 +144,7 @@ M = 200;
 inputs.Twake = Twake;
 inputs.Edges = Edges;
 inputs.Nodes = Nodes;
+startTime = datetime; fprintf("Start time %s \n", startTime);
 %% Optimsation problem
 
 vertiOpt = optimproblem;
@@ -269,10 +274,9 @@ for f = 1:length(flight_set)
 end
 
 fprintf(" 1 ");
-%
+
 % Defination of x^u_ij C7-C11
 
-% vertiOpt.Constraints.xii   = optimconstr(Nodes.all, flight_name_set_0);
 vertiOpt.Constraints.xsum1 = optimconstr(Nodes.all, flight_name_set_0);
 vertiOpt.Constraints.xsum2 = optimconstr(Nodes.all, flight_name_set_0);
 
@@ -381,7 +385,7 @@ for n = 1:length(Nodes.all)
             j = flight_set(f2).name;
             for f3 = 1:length(flight_set)
                 k = flight_set(f3).name;
-                common_node = any(ismember(flight_set_0(f1).nodes,u)) & any(ismember(flight_set_0(f2).nodes,u)) & any(ismember(flight_set_0(f3).nodes,u));
+                common_node = any(ismember(flight_set(f1).nodes,u)) & any(ismember(flight_set(f2).nodes,u)) & any(ismember(flight_set(f3).nodes,u));
                 if (f1 ~= f2) && (f1 ~=f3) && (f2 ~= f3) && common_node
                     vertiOpt.Constraints.y6(u,i,j,k) = y_uij(u,k,j) >= x_uij(u,i,j) + y_uij(u,k,i) -1;
                 end
@@ -391,6 +395,24 @@ for n = 1:length(Nodes.all)
 end
 
 fprintf(" 6 ");
+
+vertiOpt.Constraints.y7 = optimconstr(Nodes.all, flight_name_set, flight_name_set);
+for n = 1:length(Nodes.all)
+    u = Nodes.all(n);
+    for f1 = 1:length(flight_set)
+        i = flight_set(f1).name;
+        for f2 = 1:length(flight_set)
+            j = flight_set(f2).name;
+            common_node = any(ismember(flight_set(f1).nodes,u)) & any(ismember(flight_set(f2).nodes,u));
+
+            if (f1 ~= f2) && common_node
+                vertiOpt.Constraints.y7(u,i,j) = y_uij(u,i,j) + y_uij(u,j,i) == 1;
+            end
+        end
+    end
+end
+
+fprintf(" 6.1 ");
 
 % Overtake C18
 vertiOpt.Constraints.Overtake = optimconstr(string([Edges.taxi,Edges.dir]), flight_name_set, flight_name_set);
@@ -465,16 +487,16 @@ end
 fprintf(" 9 ");
 
 % TLOF pad exit C21
-vertiOpt.Constraints.TLOFenterArr = optimconstr(arr_name_set);
+vertiOpt.Constraints.TLOFexitArr = optimconstr(arr_name_set);
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
     r = arr_flight_set(f).TLOF;
     ui1 = arr_flight_set(f).nodes(4);% Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
     Ticool = arr_flight_set(f).coolTime;
-    vertiOpt.Constraints.TLOFenterArr(i) = t_iu(i,ui1) >= t_iu(i,r) + Ticool;
+    vertiOpt.Constraints.TLOFexitArr(i) = t_iu(i,ui1) >= t_iu(i,r) + Ticool;
 end
 
-% fprintf(" 10 ");
+fprintf(" 10 ");
 
 % TLOF pad entrance C21.1
 vertiOpt.Constraints.TLOFenterDep = optimconstr(dep_name_set);
@@ -548,13 +570,16 @@ end
 fprintf(" 14 ");
 
 fprintf(" \n ");
-
+endTime = datetime;
+fprintf(" End Time %s \n", endTime);
+Formulationtime = endTime - startTime;
 %% Problem solving
 
 x0.t_iu  = zeros(length(flight_set), length(Nodes.all));
 x0.x_uij = zeros(length(Nodes.all), length(flight_set_0), length(flight_set_0));
 x0.y_uij = zeros(length(Nodes.all), length(flight_set_0), length(flight_set_0));
 
+startTime = datetime; fprintf("Start time %s \n", startTime);
 vertiOpt_sol = solve(vertiOpt, x0);
 endTime = datetime;
 fprintf(" End Time %s \n", endTime);
@@ -562,11 +587,11 @@ Solveruntime = endTime - startTime;
 
 %% Result Analysis
 if ~isempty(vertiOpt_sol.t_iu)
-    startTime1 = datetime; fprintf("Start time %s \n", startTime1);
+%    startTime1 = datetime; fprintf("Start time %s \n", startTime1);
     flight_sol = validateOptSol(vertiOpt_sol, flight_set_0, inputs);
-    endTime = datetime;
-    fprintf(" End Time %s \n", endTime);
-    Validateruntime = endTime - startTime1;
+%   endTime = datetime;
+%   fprintf(" End Time %s \n", endTime);
+%   Validateruntime = endTime - startTime1;
 else
     fprintf(" SOLUTION NOT FOUND \n");
     flight_sol = [];
@@ -590,6 +615,7 @@ if saveFile
     filePath = folder + "//" + filename;
     save(filePath,'seedUsed');
 end
+fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
 %% Functions
 
 function flight_dir = flight_type(flight,nodes)
