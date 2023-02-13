@@ -1,5 +1,6 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
+rng(26)
 seedUsed = rng;
 saveFile = 1;
 if saveFile
@@ -155,7 +156,6 @@ vertiOpt = optimproblem;
 % Decision variables
 
 t_iu  = optimvar('t_iu', flight_name_set, Nodes.all, 'LowerBound',0);
-x_uij = optimvar('x_uij', Nodes.all, [flight_set_0.name], [flight_set_0.name], 'LowerBound',0,'UpperBound',1, 'Type','integer');
 y_uij = optimvar('y_uij', Nodes.all, [flight_set_0.name], [flight_set_0.name], 'LowerBound',0,'UpperBound',1, 'Type','integer');
 
 % Arrivals
@@ -263,52 +263,38 @@ fprintf(" 0.2 ");
 [vertiOpt.Constraints.minspeed ,vertiOpt.Constraints.maxspeed] =  SpeedConstr(flight_name_set, Edges, flight_set, M, t_iu);
 fprintf(" 1 ");
 
-% Defination of x^u_ij C7-C11
+% Deifinition of y^u_ij C9-C16
 
-[vertiOpt.Constraints.xsum1, vertiOpt.Constraints.xsum2] = Xconstraint12(Nodes.all, flight_set_0, x_uij);
+[vertiOpt.Constraints.ytime1,vertiOpt.Constraints.ytime2,vertiOpt.Constraints.ytime3] = YtimeConstr(Nodes.all, flight_set, t_iu, y_uij, M, a0);
+
 fprintf(" 2 ");
 
-[vertiOpt.Constraints.xtime1,vertiOpt.Constraints.xtime2,vertiOpt.Constraints.xtime3] = XtimeConstr(Nodes.all, flight_set, t_iu, x_uij, M, a0);
+[vertiOpt.Constraints.y2,vertiOpt.Constraints.y3,vertiOpt.Constraints.y4,vertiOpt.Constraints.y5] = y2to5Constr(Nodes.all,flight_set,y_uij,a0);
 
 fprintf(" 3 ");
 
-
-% Deifinition of y^u_ij C12-C17
-
-vertiOpt.Constraints.y1 = y1Constr(Nodes.all,flight_set_0,x_uij,y_uij);
-
-fprintf(" 4 ");
-
-[vertiOpt.Constraints.y2,vertiOpt.Constraints.y3,vertiOpt.Constraints.y4,vertiOpt.Constraints.y5] = y2to5Constr(Nodes.all,flight_set,x_uij,y_uij,a0);
-
-fprintf(" 5 ");
-
-vertiOpt.Constraints.y6 = y6Constr(Nodes.all,flight_set,x_uij,y_uij);
-
-fprintf(" 6 ");
-
 vertiOpt.Constraints.y7 = y7Constr(Nodes.all,flight_set,y_uij);
 
-fprintf(" 6.1 ");
+fprintf(" 4 ");
 
 % Overtake C18
 
 vertiOpt.Constraints.Overtake = overtakeConstr(flight_set,Edges,y_uij);
 
-fprintf(" 7 ");
+fprintf(" 5 ");
 
 % Collission C19
 
 vertiOpt.Constraints.Collison = collisonConstr(string([Edges.taxi,Edges.dir]), flight_set, y_uij);
 
-fprintf(" 8 ");
+fprintf(" 6 ");
 
 % Taxi & climb separation C20
 
 vertiOpt.Constraints.taxiSeparation1 = taxiseparationConstr(string(Edges.taxi), flight_set, D_sep_taxi, y_uij, t_iu, M);
 vertiOpt.Constraints.fixSeparation1  = fixseparationConstr(string(Edges.dir), flight_set, D_sep_fix, y_uij, t_iu, M);
 
-fprintf(" 9 ");
+fprintf(" 7 ");
 
 if ~isempty(arr_flight_set)
     % TLOF pad exit C21
@@ -324,7 +310,7 @@ if ~isempty(arr_flight_set)
 
     TLOFexitArr = TLOFexitArrConstr(arr_flight_set, t_iu);
 
-    fprintf(" 10 ");
+    fprintf(" 8 ");
 
 
     % land approach Arr C26.2
@@ -341,15 +327,15 @@ if ~isempty(arr_flight_set)
                 r = r1;
                 ca = arr_flight_set(f2).nodes(2); % According to j flight's plan
                 ui1 = arr_flight_set(f2).nodes(4); % according to i flight's path % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-                vertiOpt.Constraints.TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-x_uij(r,i,j))*M;
+                vertiOpt.Constraints.TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-yuij(r,i,j))*M;
             end
         end
     end
     toc
     tic
-    TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,x_uij);
+    TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,y_uij);
     toc
-    fprintf(" 11 ");
+    fprintf(" 9 ");
 end
 
 if ~isempty(dep_flight_set)
@@ -357,17 +343,17 @@ if ~isempty(dep_flight_set)
     % TLOF pad entrance C21.1
     vertiOpt.Constraints.TLOFenterDep = TLOFenterDepConstr(dep_flight_set, t_iu);
 
-    fprintf(" 12 ");
+    fprintf(" 10 ");
 
     % takeOff climb C26.1
 
-    vertiOpt.Constraints.TLOFenter2Dep = TLOFenter2DepConstr(dep_flight_set, t_iu, x_uij);
-    fprintf(" 13 ");
+    vertiOpt.Constraints.TLOFenter2Dep = TLOFenter2DepConstr(dep_flight_set, t_iu, y_uij);
+    fprintf(" 11 ");
 end
 
 % Wake vortex separation C22
 
-vertiOpt.Constraints.wake = wakeConstr(flight_set, t_iu, x_uij,Twake);
+vertiOpt.Constraints.wake = wakeConstr(flight_set, t_iu, y_uij,Twake);
 
 fprintf(" 14 ");
 
@@ -378,7 +364,6 @@ Formulationtime = endTime - startTime;
 %% Problem solving
 
 x0.t_iu  = zeros(length(flight_set), length(Nodes.all));
-x0.x_uij = zeros(length(Nodes.all), length(flight_set_0), length(flight_set_0));
 x0.y_uij = zeros(length(Nodes.all), length(flight_set_0), length(flight_set_0));
 
 startTime = datetime; fprintf("Start time %s \n", startTime);
@@ -503,40 +488,11 @@ else
 end
 end
 
-function [xsum1C,xsum2C] = Xconstraint12(Nodes, flight_set_0, x_uij)
-flight_name_set_0 = [flight_set_0.name];
-xsum1C = optimconstr(Nodes, flight_name_set_0);
-xsum2C = optimconstr(Nodes, flight_name_set_0);
-
-for n = 1:length(Nodes)
-    u = Nodes(n);
-    for f1 = 1:length(flight_set_0)
-        i = flight_set_0(f1).name;
-        xsum1 = optimexpr;
-        xsum2 = optimexpr;
-        isFilled = false;
-        for f2 = 1:length(flight_set_0)
-            j = flight_set_0(f2).name;
-            common_node = any(ismember(flight_set_0(f1).nodes,u)) & any(ismember(flight_set_0(f2).nodes,u));
-            if (f1 ~= f2) && common_node
-                xsum1 = xsum1 + x_uij(u,i,j);
-                xsum2 = xsum2 + x_uij(u,j,i);
-                isFilled = true;
-            end
-        end
-        if isFilled
-            xsum1C(u,i) = xsum1 == 1;
-            xsum2C(u,i) = xsum2 == 1;
-        end
-    end
-end
-end
-
-function [xtime1,xtime2,xtime3] = XtimeConstr(Nodes, flight_set, t_iu, x_uij, M, a0)
+function [ytime1,ytime2,ytime3] = YtimeConstr(Nodes, flight_set, t_iu, y_uij, M, a0)
 flight_name_set = [flight_set.name];
-xtime1 = optimconstr(Nodes, flight_name_set, flight_name_set);
-xtime2 = optimconstr(Nodes, flight_name_set, flight_name_set);
-xtime3 = optimconstr(Nodes, flight_name_set, flight_name_set);
+ytime1 = optimconstr(Nodes, flight_name_set, flight_name_set);
+ytime2 = optimconstr(Nodes, flight_name_set, flight_name_set);
+ytime3 = optimconstr(Nodes, flight_name_set, flight_name_set);
 
 % for n = 1:length(Nodes)
 %     u = Nodes(n);
@@ -549,32 +505,16 @@ for f1 = 1:length(flight_set)
         if (f1 ~= f2)
             common_nodes = intersect(flight_set(f1).nodes, flight_set(f2).nodes);
 
-            xtime1(common_nodes,i,j) = t_iu(j,common_nodes) >= t_iu(i,common_nodes) - (1-x_uij(common_nodes,i,j))'*M;
-            xtime2(common_nodes,i,j) = t_iu(i,common_nodes) >= t_iu(j,common_nodes) - (1-x_uij(common_nodes,a0,j))'*M;
-            xtime3(common_nodes,i,j) = t_iu(i,common_nodes) >= t_iu(j,common_nodes) - (1-x_uij(common_nodes,i,a0))'*M;
+            ytime1(common_nodes,i,j) = t_iu(j,common_nodes) >= t_iu(i,common_nodes) - (1-y_uij(common_nodes,i,j))'*M;
+            ytime2(common_nodes,i,j) = t_iu(i,common_nodes) >= t_iu(j,common_nodes) - (1-y_uij(common_nodes,a0,j))'*M;
+            ytime3(common_nodes,i,j) = t_iu(i,common_nodes) >= t_iu(j,common_nodes) - (1-y_uij(common_nodes,i,a0))'*M;
         end
     end
 end
 % end
 end
 
-function y1 = y1Constr(Nodes,flight_set_0,x_uij, y_uij)
-flight_name_set_0 = [flight_set_0.name];
-y1 = optimconstr(Nodes, flight_name_set_0, flight_name_set_0);
-for f1 = 1:length(flight_set_0)
-    i = flight_set_0(f1).name;
-    for f2 = 1:length(flight_set_0)
-        j = flight_set_0(f2).name;
-        if (f1 ~= f2)
-            common_nodes = intersect(flight_set_0(f1).nodes,flight_set_0(f2).nodes);
-            y1(common_nodes,i,j) = y_uij(common_nodes,i,j) >= x_uij(common_nodes,i,j);
-        end
-    end
-end
-end
-
-
-function [y2,y3,y4,y5] = y2to5Constr(Nodes,flight_set,x_uij,y_uij,a0)
+function [y2,y3,y4,y5] = y2to5Constr(Nodes,flight_set,y_uij,a0)
 
 flight_name_set = [flight_set.name];
 y2 = optimconstr(Nodes, flight_name_set, flight_name_set);
@@ -588,36 +528,15 @@ for f1 = 1:length(flight_set)
         j = flight_set(f2).name;
         if (f1 ~= f2)
             common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);
-            y2(common_nodes,i,j) = y_uij(common_nodes,j,i) >= x_uij(common_nodes,a0,j);
-            y3(common_nodes,i,j) = x_uij(common_nodes,a0, j) + y_uij(common_nodes,i,j) <=  1;
-            y4(common_nodes,i,j) = y_uij(common_nodes,j,i) >= x_uij(common_nodes,i,a0);
-            y5(common_nodes,i,j) = x_uij(common_nodes,i,a0) + y_uij(common_nodes,i,j) <= 1;
+            y2(common_nodes,i,j) = y_uij(common_nodes,j,i) >= y_uij(common_nodes,a0,j);
+            y3(common_nodes,i,j) = y_uij(common_nodes,a0, j) + y_uij(common_nodes,i,j) <=  1;
+            y4(common_nodes,i,j) = y_uij(common_nodes,j,i) >= y_uij(common_nodes,i,a0);
+            y5(common_nodes,i,j) = y_uij(common_nodes,i,a0) + y_uij(common_nodes,i,j) <= 1;
         end
     end
 end
 
 end
-
-function y6 = y6Constr(Nodes,flight_set,x_uij,y_uij)
-
-flight_name_set = [flight_set.name];
-
-y6 = optimconstr(Nodes, flight_name_set, flight_name_set, flight_name_set);
-for f1 = 1:length(flight_set)
-    i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
-        j = flight_set(f2).name;
-        for f3 = 1:length(flight_set)
-            k = flight_set(f3).name;
-            if (f1 ~= f2) && (f1 ~=f3) && (f2 ~= f3)
-                common_nodes = intersect(flight_set(f1).nodes, intersect(flight_set(f2).nodes,flight_set(f3).nodes));
-                y6(common_nodes,i,j,k) = y_uij(common_nodes,k,j) >= x_uij(common_nodes,i,j) + y_uij(common_nodes,k,i) -1;
-            end
-        end
-    end
-end
-end
-
 
 function y7 = y7Constr(Nodes,flight_set,y_uij)
 
@@ -636,7 +555,6 @@ for f1 = 1:length(flight_set)
 end
 
 end
-
 
 function Overtake = overtakeConstr(flight_set,Edges,y_uij)
 
@@ -755,7 +673,7 @@ TLOFenterArr(i) = t_iu(i,ui1) >= t_iu(i,r) + Ticool;
 end
 
 
-function TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,x_uij)
+function TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,y_uij)
 
 arr_name_set = [arr_flight_set.name];
 TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
@@ -769,7 +687,7 @@ for f1 = 1:length(arr_flight_set)
             r = r1;
             ca = arr_flight_set(f2).nodes(2); % According to j flight's plan
             ui1 = arr_flight_set(f2).nodes(4); % according to i flight's path % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-            TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-x_uij(r,i,j))*M;
+            TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-y_uij(r,i,j))*M;
         end
     end
 end
@@ -788,7 +706,7 @@ ca = [arr_flight_set(f2(idx)).nodes(2)]; % According to j flight's plan
 ui1 = [arr_flight_set(f1(idx)).nodes(4)]; % according to i flight's path % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
 i = arr_name_set(f1(idx));
 j = arr_name_set(f2(idx));
-TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-x_uij(r,i,j))*M;
+TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-y_uij(r,i,j))*M;
 end
 
 function TLOFenterDep = TLOFenterDepConstr(dep_flight_set, t_iu)
@@ -803,7 +721,7 @@ TLOFenterDep(dep_name_set) = [constr{:}];
 end
 
 
-function wakeVortex = wakeConstr(flight_set, t_iu, x_uij,Twake)
+function wakeVortex = wakeConstr(flight_set, t_iu, y_uij,Twake)
 
 global M
 flight_name_set = [flight_set.name];
@@ -819,7 +737,7 @@ for f1 = 1:length(flight_set)
         if (f1 ~= f2) && (r1 == r2)
             r = r1;
             Rsepij = Twake(flight_set(f1).class, flight_set(f2).class);
-            wakeVortex(i,j) = t_iu(j,r) >= t_iu(i,r) + Rsepij - (1-x_uij(r,i,j))*M;
+            wakeVortex(i,j) = t_iu(j,r) >= t_iu(i,r) + Rsepij - (1-y_uij(r,i,j))*M;
         end
     end
 end
@@ -858,7 +776,7 @@ end
 % wakeVortex(i,j) = t_iu(j,r) >= t_iu(i,r) + Rsepij - (1-x_uij(r,i,j))*M;
 end
 
-function TLOFenter2Dep = TLOFenter2DepConstr(dep_flight_set, t_iu, x_uij)
+function TLOFenter2Dep = TLOFenter2DepConstr(dep_flight_set, t_iu, y_uij)
 
 global M
 dep_name_set = [dep_flight_set.name];
@@ -872,7 +790,7 @@ for f1 = 1:length(dep_flight_set)
         if (f1 ~= f2) && (r1 == r2)
             r = r1;
             ca = dep_flight_set(f1).nodes(end-1); % According to i flight's plan..,Last node, LaunchpadNode, Climb_a, Climb_b
-            TLOFenter2Dep(i,j) = t_iu(j,r) >= t_iu(i,ca) - (1-x_uij(r,i,j))*M;
+            TLOFenter2Dep(i,j) = t_iu(j,r) >= t_iu(i,ca) - (1-y_uij(r,i,j))*M;
         end
     end
 end
