@@ -1,9 +1,9 @@
 function outputs = validateOptSol(vertioptSoln, flight_set_0, inputs)
 
 
-Twake = inputs.Twake;
+twake = inputs.Twake;
 Edges = inputs.Edges;
-Nodes = inputs.Nodes;
+nodes = inputs.Nodes;
 % W_r = 7;
 % W_q = 2;
 % Wa_c = 3;
@@ -13,8 +13,12 @@ Nodes = inputs.Nodes;
 % M = 200;
 num_flight = length(flight_set_0);
 t_iu  = vertioptSoln.t_iu;
-x_uij = vertioptSoln.x_uij;
-% y_uij = vertioptSoln.y_uij;
+if isfield(vertioptSoln, 'x_uij')
+    x_uij = vertioptSoln.x_uij;
+end
+if isfield(vertioptSoln, 'y_uij')
+    y_uij = vertioptSoln.y_uij;
+end
 
 % arr_flight_set = []; dep_flight_set = [];
 %
@@ -67,17 +71,21 @@ for f = 2:num_flight
     end
 
     flight.delay = flight.TotalTimeTaken - flight.zeroDelayTime;
-    
+
     flight_sol = [flight_sol flight];
 end
 
 outputs.flight_sol_set = flight_sol;
 
-outputs.wakeConstr = calc_wake_separationConstr(flight_set_0, inputs, t_iu, x_uij);
-outputs.wake_sep = calc_wake_separationActual(flight_set_0, inputs, t_iu, x_uij);
+if isfield(vertioptSoln, 'x_uij')
+    outputs.wakeConstr = calc_wake_separationConstr(flight_set_0, inputs, t_iu, x_uij);
+    outputs.wake_sep = calc_wake_separationActual(flight_set_0, inputs, t_iu, x_uij);
+else
+    outputs.wakeConstr = calc_wake_separationConstr(flight_set_0, inputs, t_iu, y_uij);
+    outputs.wake_sep = calc_wake_separationActual(flight_set_0, inputs, t_iu, y_uij);
 end
 
-
+end
 function len = get_edge_length(e, Edges)
 
 if ismember(e, [[Edges.gate],[Edges.taxi],[Edges.TLOF]])
@@ -98,17 +106,17 @@ timeOnTaxi = 0;
 if flight.direction == "arr"
     timeOnapproach = (get_edge_length(flight.edges(1), Edges)/flight.slant_climb_speed)-5;
     timeOnOVF = (get_edge_length(flight.edges(2), Edges)/flight.vertical_climb_speed)-5;
-    
+
     for e = 4:(length(flight.edges)) % Last taxi node to TLOF not counted
         timeOnTaxi = timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed)-5;
     end
     timetaken = [timeOnTaxi, timeOnOVF, timeOnapproach];
-    
+
 else % dep
     for e = 1:(length(flight.edges)-3) % Last taxi node to TLOF not counted
         timeOnTaxi = max(timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed) - 5,0);
     end
-    
+
     timeOnOVF = max((get_edge_length(flight.edges(end-1), Edges)/flight.vertical_climb_speed) - 5,0);
     timeOnclimb = max((get_edge_length(flight.edges(end), Edges)/flight.slant_climb_speed) - 5,0);
     timetaken = [timeOnTaxi, timeOnOVF, timeOnclimb];
@@ -117,10 +125,10 @@ end
 
 end
 
-function wake_sep = calc_wake_separationConstr(flight_set_0, inputs, t_iu, x_uij)
+function wake_sep = calc_wake_separationConstr(flight_set_0, inputs, t_iu, z_uij)
 
-Nodes = inputs.Nodes;
-Twake = inputs.Twake;
+nodes = inputs.Nodes;
+twake = inputs.Twake;
 wake_sep = -1*ones(length(flight_set_0)-1);
 for f1 = 2:length(flight_set_0)
     for f2 = 2:length(flight_set_0)
@@ -128,17 +136,17 @@ for f1 = 2:length(flight_set_0)
         r2 = flight_set_0(f2).TLOF;
 
         if (f1 ~= f2) && (r1 == r2)
-            r = find(Nodes.all == r1,1);
-            Rsepij = Twake(flight_set_0(f1).class, flight_set_0(f2).class);
-            wake_sep(f1-1,f2-1) = x_uij(r,f1,f2) * (t_iu(f2-1,r) - (t_iu(f1-1,r) - Rsepij));
+            r = find(nodes.all == r1,1);
+            Rsepij = twake(flight_set_0(f1).class, flight_set_0(f2).class);
+            wake_sep(f1-1,f2-1) = z_uij(r,f1,f2) * (t_iu(f2-1,r) - (t_iu(f1-1,r) - Rsepij));
         end
     end
 end
 end
 
-function wake_sep = calc_wake_separationActual(flight_set_0, inputs, t_iu, x_uij)
+function wake_sep = calc_wake_separationActual(flight_set_0, inputs, t_iu, z_uij)
 
-Nodes = inputs.Nodes;
+nodes = inputs.Nodes;
 wake_sep = -1*ones(length(flight_set_0)-1);
 for f1 = 2:length(flight_set_0)
     for f2 = 2:length(flight_set_0)
@@ -146,8 +154,8 @@ for f1 = 2:length(flight_set_0)
         r2 = flight_set_0(f2).TLOF;
 
         if (f1 ~= f2) && (r1 == r2)
-            r = find(Nodes.all == r1,1);
-            wake_sep(f1-1,f2-1) = (t_iu(f2-1,r) - (t_iu(f1-1,r))) * x_uij(r,f1,f2);
+            r = find(nodes.all == r1,1);
+            wake_sep(f1-1,f2-1) = (t_iu(f2-1,r) - (t_iu(f1-1,r))) * z_uij(r,f1,f2);
         end
     end
 end
