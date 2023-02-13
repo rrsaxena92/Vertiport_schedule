@@ -1,8 +1,7 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
-% rng(26)
 seedUsed = rng;
-saveFile = 0;
+saveFile = 1;
 if saveFile
     fprintf("File is going to be saved \n");
 else
@@ -59,7 +58,7 @@ Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, in
 %% FLight set
 
 flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
-operator = {'xx'};%{'xx','zz','yy','ww','tt','mm','nn','rr'};
+operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
@@ -144,7 +143,7 @@ Wa_t = 8; % Weight for time spent waiting on taxiing by departure flight
 Wd_t = 8; % Weight for time spent waiting on taxiing by arrival flight
 
 global M
-M = 600;
+M = ceil(num_flight/10)*200; % Till 10 flights its 200, till 20 flights its 400, till 30 flihts its 600
 
 inputs.Twake = Twake;
 inputs.Edges = Edges;
@@ -382,8 +381,6 @@ x0.t_iu  = zeros(length(flight_set), length(Nodes.all));
 x0.x_uij = zeros(length(Nodes.all), length(flight_set_0), length(flight_set_0));
 x0.y_uij = zeros(length(Nodes.all), length(flight_set_0), length(flight_set_0));
 
-% load("vertiOptSol_10_Y7.mat")
-% x0 = vertisol10Y7;
 startTime = datetime; fprintf("Start time %s \n", startTime);
 vertiOpt_sol = solve(vertiOpt, x0);
 endTime = datetime;
@@ -420,6 +417,8 @@ if saveFile
     filePath = folder + "//" + filename;
     save(filePath,'seedUsed');
 end
+
+fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
 %% Functions
 function [minspeed, maxspeed] =  SpeedConstr(flight_name_set, Edges, flight_set, M, t_iu)
 minspeed = optimconstr(flight_name_set, setdiff(Edges.all,Edges.TLOF));

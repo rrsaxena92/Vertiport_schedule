@@ -50,7 +50,7 @@ F=Twake.*FT;
 
 cooling_time=[2 4 6 8 10];
 
-topo_1_dep_dir_1
+topo_1_dep_dir_2
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 %% FLight set
 
@@ -139,7 +139,7 @@ W_g  = 2;  % Weight for time spent waiting on gate by departure flight
 Wa_t = 8; % Weight for time spent waiting on taxiing by departure flight
 Wd_t = 8; % Weight for time spent waiting on taxiing by arrival flight
 
-M = 200;
+M = 600;
 
 inputs.Twake = Twake;
 inputs.Edges = Edges;
