@@ -25,7 +25,7 @@ vertical_climb_edge_length_above_TLOF=5*d5; %From TLOF pad to point X
 max_vertical_climb_speed = 8; % 20km/hr is 6m/s which is max speed on taxiways and max vertical climb speed
 
 inclination_climb_edge_length = 20*d5; %From point X to fixed direction
-
+maxSlantClimbSpeed = 17;
 %D is separation distance on taxi where rows are leading and columns are following
 D_sep_taxi = [d1 d2 d3 d4 d5; d2 d2 d3 d4 d5; d3 d3 d3 d4 d5; d4 d4 d4 d4 d5; d5 d5 d5 d5 d5];
 
@@ -63,7 +63,7 @@ operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
-num_flight = 10;
+num_flight = 1;
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -87,7 +87,7 @@ for f = 1:num_flight
     flight.edges = flight_path_edges{x};
     flight.taxi_speed=max_edge_taxi_speed;
     flight.vertical_climb_speed=max_vertical_climb_speed;
-    flight.slant_climb_speed=17;
+    flight.slant_climb_speed = maxSlantClimbSpeed;
     flight.class = UAM_class(flight);
     flight.coolTime = cooling_time(flight.class);
 
@@ -114,6 +114,37 @@ if ~isempty(arr_flight_set)
     arr_name_set = [arr_flight_set.name];
     if length(arr_name_set) == 1
         arr_name_set = {arr_name_set{:}};
+    end
+    % Loop over the 'arr' flights and check reqTime for same 'fix_direction'
+    all_time_diff_met = false;
+    while ~all_time_diff_met
+        all_time_diff_met = true; % Assume that all flights meet the time diff requirement
+
+        for f1 = 1:length(arr_flight_set)
+            for f2 = 1:length(arr_flight_set)
+                if f1 ~= f2
+                    if strcmp(arr_flight_set(f1).fix_direction, arr_flight_set(f2).fix_direction)
+                        % Calculate time difference between reqTime values
+                        time_diff = round(abs(arr_flight_set(f1).reqTime - arr_flight_set(f2).reqTime),2);
+                        req_time_diff = round(D_sep_fix(flight_set(f1).class, flight_set(f2).class) / maxSlantClimbSpeed,2);
+                        if time_diff < req_time_diff
+                            % Add time difference to the flight with higher reqTime value
+                            if arr_flight_set(f2).reqTime  > arr_flight_set(f1).reqTime
+                                arr_flight_set(f2).reqTime = arr_flight_set(f2).reqTime + (req_time_diff - time_diff);
+                                i = find(flight_name_set == arr_flight_set(f2).name);
+                                flight_set(i).reqTime = arr_flight_set(f2).reqTime;
+                            else
+                                arr_flight_set(f1).reqTime = arr_flight_set(f1).reqTime + (req_time_diff - time_diff);
+                                i = find(flight_name_set == arr_flight_set(f1).name);
+                                flight_set(i).reqTime = arr_flight_set(f1).reqTime;
+                            end
+                            
+                            all_time_diff_met = false;
+                        end
+                    end
+                end
+            end
+        end
     end
 else
     arr_name_set = {' '};
@@ -250,7 +281,7 @@ fprintf(" 0.1 ");
 
 % Gate out C2
 
-vertiOpt.Constraints.gateOutC1 = optimconstr(dep_name_set); % TODO According to departures
+vertiOpt.Constraints.gateOutC1 = optimconstr(dep_name_set);
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
     g = dep_flight_set(f).nodes(1);
@@ -260,7 +291,7 @@ end
 fprintf(" 0.2 ");
 
 % Taxiing speed constraints C5 & C6
-[vertiOpt.Constraints.minspeed ,vertiOpt.Constraints.maxspeed] =  SpeedConstr(flight_name_set, Edges, flight_set, M, t_iu);
+[vertiOpt.Constraints.minspeed ,vertiOpt.Constraints.maxspeed] =  SpeedConstr(Edges, flight_set, M, t_iu);
 fprintf(" 1 ");
 
 % Deifinition of y^u_ij C9-C16
@@ -308,13 +339,11 @@ if ~isempty(arr_flight_set)
         vertiOpt.Constraints.TLOFexitArr(i) = t_iu(i,ui1) >= t_iu(i,r) + Ticool;
     end
 
-    TLOFexitArr = TLOFexitArrConstr(arr_flight_set, t_iu);
-
     fprintf(" 8 ");
 
 
     % land approach Arr C26.2
-    tic
+    
     vertiOpt.Constraints.TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
 
     for f1 = 1:length(arr_flight_set)
@@ -327,14 +356,13 @@ if ~isempty(arr_flight_set)
                 r = r1;
                 ca = arr_flight_set(f2).nodes(2); % According to j flight's plan
                 ui1 = arr_flight_set(f2).nodes(4); % according to i flight's path % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-                vertiOpt.Constraints.TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-yuij(r,i,j))*M;
+                vertiOpt.Constraints.TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-y_uij(r,i,j))*M;
             end
         end
     end
-    toc
-    tic
-    TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,y_uij);
-    toc
+        
+    TLOFClearArr = TLOFClearArrConstr(arr_flight_set, y_uij, t_iu);
+    
     fprintf(" 9 ");
 end
 
@@ -405,7 +433,8 @@ end
 
 fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
 %% Functions
-function [minspeed, maxspeed] =  SpeedConstr(flight_name_set, Edges, flight_set, M, t_iu)
+function [minspeed, maxspeed] =  SpeedConstr(Edges, flight_set, M, t_iu)
+flight_name_set = [flight_set.name];
 minspeed = optimconstr(flight_name_set, setdiff(Edges.all,Edges.TLOF));
 maxspeed = optimconstr(flight_name_set, setdiff(Edges.all,Edges.TLOF));
 
@@ -614,7 +643,7 @@ end
 function taxiSeparation1 = taxiseparationConstr(Edges, flight_set, D_sep_taxi, y_uij, t_iu, M)
 
 flight_name_set = [flight_set.name];
-taxiSeparation1 = optimconstr(string(Edges), flight_name_set, flight_name_set);
+taxiSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
@@ -638,7 +667,7 @@ end
 function fixSeparation1 = fixseparationConstr(Edges, flight_set, D_sep_fix, y_uij, t_iu, M)
 
 flight_name_set = [flight_set.name];
-fixSeparation1 = optimconstr(string(Edges), flight_name_set, flight_name_set);
+fixSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
@@ -660,21 +689,8 @@ end
 end
 
 
-function TLOFenterArr = TLOFexitArrConstr(arr_flight_set, t_iu)
-
-TLOFenterArr = optimconstr(arr_name_set);
-
-ui1 = cellfun(@(a) a(4), {arr_flight_set.nodes});
-Ticool = [arr_flight_set.coolTime];
-i = {arr_flight_set.name};
-r = {arr_flight_set.TLOF};
-TLOFenterArr(i) = t_iu(i,ui1) >= t_iu(i,r) + Ticool;
-
-end
-
-
-function TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,y_uij)
-
+function TLOFClearArr = TLOFClearArrConstr(arr_flight_set,y_uij, t_iu)
+global M
 arr_name_set = [arr_flight_set.name];
 TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
 for f1 = 1:length(arr_flight_set)
@@ -691,22 +707,6 @@ for f1 = 1:length(arr_flight_set)
         end
     end
 end
-
-% From CHAT GPT
-arr_name_set = [arr_flight_set.name];
-TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
-[f1,f2] = meshgrid(1:length(arr_flight_set));
-toRemove = tril(ones(length(arr_flight_set)),-1);
-f1 = f1(toRemove == 1); f2 = f2(toRemove == 1);
-r1 = [arr_flight_set(f1).TLOF];
-r2 = [arr_flight_set(f2).TLOF];
-idx = r1 == r2;
-r = r1(idx);
-ca = [arr_flight_set(f2(idx)).nodes(2)]; % According to j flight's plan
-ui1 = [arr_flight_set(f1(idx)).nodes(4)]; % according to i flight's path % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-i = arr_name_set(f1(idx));
-j = arr_name_set(f2(idx));
-TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-y_uij(r,i,j))*M;
 end
 
 function TLOFenterDep = TLOFenterDepConstr(dep_flight_set, t_iu)
