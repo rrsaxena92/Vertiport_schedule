@@ -2,7 +2,6 @@ clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
-saveFile = 1;
 if saveFile
     fprintf("File is going to be saved \n");
 else
@@ -51,11 +50,12 @@ F=Twake.*FT;
 
 cooling_time=[2 4 6 8 10];
 
-global Edges Nodes flight_path_nodes flight_path_edges flight_class operator
-topo_1_dep_dir_2
+
+global Edges Nodes flight_path_nodes flight_path_edges flight_class operator descentDelay 
+topo_1_arr_dir_2
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
-
+descentDelay = 15;
 %% FLight set
 
 flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
@@ -63,7 +63,7 @@ operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
-num_flight = 1;
+num_flight = 10;
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -112,6 +112,7 @@ end
 flight_name_set = [flight_set.name];
 if ~isempty(arr_flight_set)
     arr_name_set = [arr_flight_set.name];
+    extraDelay = 12;
     if length(arr_name_set) == 1
         arr_name_set = {arr_name_set{:}};
     end
@@ -125,9 +126,9 @@ if ~isempty(arr_flight_set)
                 if f1 ~= f2
                     if strcmp(arr_flight_set(f1).fix_direction, arr_flight_set(f2).fix_direction)
                         % Calculate time difference between reqTime values
-                        time_diff = round(abs(arr_flight_set(f1).reqTime - arr_flight_set(f2).reqTime),2);
-                        req_time_diff = round(D_sep_fix(flight_set(f1).class, flight_set(f2).class) / maxSlantClimbSpeed,2);
-                        if time_diff < req_time_diff
+                        time_diff = abs(arr_flight_set(f1).reqTime - arr_flight_set(f2).reqTime);
+                        req_time_diff = D_sep_fix(flight_set(f1).class, flight_set(f2).class) / maxSlantClimbSpeed + extraDelay;
+                        if 0 < round(req_time_diff - time_diff,2)
                             % Add time difference to the flight with higher reqTime value
                             if arr_flight_set(f2).reqTime  > arr_flight_set(f1).reqTime
                                 arr_flight_set(f2).reqTime = arr_flight_set(f2).reqTime + (req_time_diff - time_diff);
@@ -175,7 +176,7 @@ Wa_t = 8; % Weight for time spent waiting on taxiing by departure flight
 Wd_t = 8; % Weight for time spent waiting on taxiing by arrival flight
 
 global M
-M = ceil(num_flight/10)*200; % Till 10 flights its 200, till 20 flights its 400, till 30 flihts its 600
+M = ceil(num_flight/10 +1)*200; % Till 10 flights its 200, till 20 flights its 400, till 30 flihts its 600
 
 inputs.Twake = Twake;
 inputs.Edges = Edges;
@@ -434,6 +435,7 @@ end
 fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
 %% Functions
 function [minspeed, maxspeed] =  SpeedConstr(Edges, flight_set, M, t_iu)
+global descentDelay Nodes
 flight_name_set = [flight_set.name];
 minspeed = optimconstr(flight_name_set, setdiff(Edges.all,Edges.TLOF));
 maxspeed = optimconstr(flight_name_set, setdiff(Edges.all,Edges.TLOF));
@@ -444,8 +446,13 @@ for f = 1:length(flight_set)
     for e = 1:(length(tmpEdges))
         e_ = split(tmpEdges{e},'-');
         u = e_{1}; v = e_{2};
+        if ismember(u,Nodes.dir)
+            delay = descentDelay;
+        else
+            delay = 0;
+        end
         MinEdgeT_uv = max(timeonedge(flight_set(f),tmpEdges{e}, Edges.len) - 5,0); % TODO Different speed
-        MaxEdgeT_uv = min(timeonedge(flight_set(f),tmpEdges{e}, Edges.len) + 5,M); % TODO Different speed
+        MaxEdgeT_uv = min(timeonedge(flight_set(f),tmpEdges{e}, Edges.len) + 5 + delay,M); % TODO Different speed
         minspeed(i,tmpEdges(e)) = t_iu(i,v) >= t_iu(i,u) + MinEdgeT_uv;
         maxspeed(i,tmpEdges(e)) = t_iu(i,v) <= t_iu(i,u) + MaxEdgeT_uv;
     end
@@ -473,19 +480,19 @@ x=string(n(1));
 y=string(n(2));
 if flight.direction == "dep"
     if(x == flight.TLOF)
-        t=(edgeLen(2))/flight.vertical_climb_speed;
+        t=(edgeLen(2)/flight.vertical_climb_speed);
     elseif (y == flight.fix_direction)
-        t=(edgeLen(3))/flight.slant_climb_speed;
+        t=(edgeLen(3)/flight.slant_climb_speed);
     else
-        t=(edgeLen(1))/flight.taxi_speed;
+        t=(edgeLen(1)/flight.taxi_speed);
     end
 elseif flight.direction == "arr"
     if(y == flight.TLOF)
-        t=(edgeLen(2))/flight.vertical_climb_speed;
+        t=(edgeLen(2)/flight.vertical_climb_speed);
     elseif (x == flight.fix_direction)
-        t=(edgeLen(3))/flight.slant_climb_speed;
+        t=(edgeLen(3)/flight.slant_climb_speed);
     else
-        t=(edgeLen(1))/flight.taxi_speed;
+        t=(edgeLen(1)/flight.taxi_speed);
     end
 else
     fprintf("Wrong flight direction for flight %s \n", flight.name);
