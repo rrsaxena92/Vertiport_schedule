@@ -58,7 +58,9 @@ for f = 2:num_flight
         flight.TaxiTimeTaken = flight.nodeTime(1) - flight.nodeTime(end-3);
         flight.GateTime = flight.nodeTime(1) - flight.nodeTime(2);
         flight.TotalTimeTaken = flight.nodeTime(1) - flight.nodeTime(end);
+
         zeroTime = zeroDelayTime(flight, Edges);
+        flight.OFVdelay = flight.TLOFTimeTaken - zeroTime(2);
         flight.zeroDelayTime = sum(zeroTime) + flight.coolTime;
     else % dep
         flight.fixTimeTaken =  flight.nodeTime(end) - flight.nodeTime(end-1);
@@ -67,9 +69,14 @@ for f = 2:num_flight
         flight.TaxiTimeTaken = flight.nodeTime(end-3) - flight.nodeTime(1); % Last node, LaunchpadNode, Climb_a, Climb_b
         flight.GateTime = flight.nodeTime(1) - flight.reqTime;
         flight.TotalTimeTaken = flight.nodeTime(end) - flight.nodeTime(1) + flight.GateTime;
-        flight.zeroDelayTime = sum(zeroDelayTime(flight, Edges));
+
+        zeroTime = zeroDelayTime(flight, Edges);
+        flight.OFVdelay = flight.TLOFexitTimeTaken - zeroTime(2);
+        flight.zeroDelayTime = sum(zeroTime);
     end
 
+    flight.Taxidelay = flight.TaxiTimeTaken - zeroTime(1);
+    flight.fixDelay = flight.fixTimeTaken -zeroTime(3);
     flight.delay = flight.TotalTimeTaken - flight.zeroDelayTime;
 
     flight_sol = [flight_sol flight];
