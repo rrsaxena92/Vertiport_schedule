@@ -68,9 +68,23 @@ for i in vertdf_common["NumFlights"].unique():
 # sns.lineplot(data=meandf_ratio, x="Ratio", y="Delay", hue="NumFlights", marker='o', ax=ax.ax, legend=False)
 
 
-g = sns.FacetGrid(vertdf_dir)
+''' A try to put catplot and lineplot in same graph'''
+# g = sns.FacetGrid(vertdf_dir)
+# g.map_dataframe(sns.boxplot, x="num Flights", y="Delay", hue="Directions")
+# g.map_dataframe(sns.lineplot,x="num Flights", y="Delay", hue="Directions")
 
-g.map_dataframe(sns.boxplot, x="num Flights", y="Delay", hue="Directions")
-g.map_dataframe(sns.lineplot,x="num Flights", y="Delay", hue="Directions")
+""" Histogram for flights"""
+vertdf20 = vertdf_dir[vertdf_dir["num Flights"] == 20]
+# sns.histplot(data=vertdf20, x="Delay", hue="Directions", palette="Set2", multiple="stack")
+# plt.title("All")
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 6))
+for i in vertdf20.Directions.unique():
+    vertDirdf20 = vertdf20[vertdf20["Directions"]==i]
+    plt.figure()
+    hist =  sns.histplot(data=vertDirdf20, x="Delay", binwidth=10, binrange=[min(vertdf20["Delay"]), max(vertdf20["Delay"])], ax=axes[i])
+    hist.set_yticks(range(0,10))
+    plt.title("Directions " + str(i))
+
+
 plt.tight_layout()
 plt.show()
