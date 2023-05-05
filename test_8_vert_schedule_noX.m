@@ -3,6 +3,8 @@ startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
 saveFile = 0;
+num_flight = 10;
+fairness_enable = 1;
 if saveFile
     fprintf("File is going to be saved \n");
 else
@@ -52,8 +54,8 @@ F=Twake.*FT;
 cooling_time=[2 4 6 8 10];
 
 
-global Edges Nodes flight_path_nodes flight_path_edges flight_class operator descentDelay 
-topo_1_arr_dir_1
+global Edges Nodes flight_path_nodes flight_path_edges flight_class operator descentDelay
+topo_1_dep_dir_4
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 15;
@@ -64,7 +66,7 @@ operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
-num_flight = 5;
+
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -140,7 +142,7 @@ if ~isempty(arr_flight_set)
                                 i = find(flight_name_set == arr_flight_set(f1).name);
                                 flight_set(i).reqTime = arr_flight_set(f1).reqTime;
                             end
-                            
+
                             all_time_diff_met = false;
                         end
                     end
@@ -184,8 +186,8 @@ W_q  = 10;  % Weight for time spent on TLOF before takeoff
 Wa_c = 7;  % Weight for time spent on fix direction by arrival flight
 Wd_c = 7;  % Weight for time spent on fix direction by departure flight
 W_g  = 2;  % Weight for time spent waiting on gate by departure flight
-Wa_t = 8; % Weight for time spent waiting on taxiing by departure flight
-Wd_t = 8; % Weight for time spent waiting on taxiing by arrival flight
+Wa_t = 8; % Weight for time spent waiting on taxiing by arrival flight
+Wd_t = 8; % Weight for time spent waiting on taxiing by departure flight
 
 global M
 M = ceil(num_flight/10 +1)*200; % Till 10 flights its 200, till 20 flights its 400, till 30 flihts its 600
@@ -356,7 +358,7 @@ if ~isempty(arr_flight_set)
 
 
     % land approach Arr C26.2
-    
+
     vertiOpt.Constraints.TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
 
     for f1 = 1:length(arr_flight_set)
@@ -373,9 +375,9 @@ if ~isempty(arr_flight_set)
             end
         end
     end
-        
+
     TLOFClearArr = TLOFClearArrConstr(arr_flight_set, y_uij, t_iu);
-    
+
     fprintf(" 9 ");
 end
 
@@ -398,6 +400,20 @@ vertiOpt.Constraints.wake = wakeConstr(flight_set, t_iu, y_uij,Twake);
 
 fprintf(" 14 ");
 
+% Fairness constraints
+
+if fairness_enable
+    vertiOpt.Constraints.fairness = optimconstr(dep_name_set);
+    P = 0.15;
+    limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(1)) - x.reqTime, dep_flight_set)))/length(dep_flight_set));
+    for f = 1:length(dep_flight_set)
+        i = dep_flight_set(f).name;
+        g = dep_flight_set(f).nodes(1);
+        vertiOpt.Constraints.fairness(i) = t_iu(i, g) - dep_flight_set(f).reqTime <= limit;
+    end
+    fprintf(" 15 ");
+end
+
 fprintf(" \n ");
 endTime = datetime;
 fprintf(" End Time %s \n", endTime);
@@ -415,10 +431,10 @@ Solveruntime = endTime - startTime;
 
 %% Result Analysis
 if ~isempty(vertiOpt_sol.t_iu)
-%     startTime1 = datetime; fprintf("Start time %s \n", startTime1);
+    %     startTime1 = datetime; fprintf("Start time %s \n", startTime1);
     flight_sol = validateOptSol(vertiOpt_sol, flight_set_0, inputs);
     endTime = datetime;
-%     fprintf(" End Time %s \n", endTime);
+    %     fprintf(" End Time %s \n", endTime);
     Validateruntime = endTime - startTime;
 else
     fprintf(" SOLUTION NOT FOUND \n");
@@ -595,10 +611,9 @@ for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
     for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
-        if (f1 ~= f2)
-            common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);
-            y7(common_nodes,i,j) = y_uij(common_nodes,i,j) + y_uij(common_nodes,j,i) == 1;
-        end
+        common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);
+        y7(common_nodes,i,j) = y_uij(common_nodes,i,j) + y_uij(common_nodes,j,i) == 1;
+
     end
 end
 
