@@ -56,7 +56,7 @@ TAT = [90, 120, 150, 210, 300];
 
 global Edges Nodes  flight_class operator descentDelay % flight_path_nodes flight_path_edges
 
-topo_1_arr_dep_dir_1
+topo_1_arr_dep_dir_2
 
 Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 
@@ -69,7 +69,7 @@ flight_set_struct = struct('name',[],'ArrReqTime',[],'DepReqTime',[],'ArrNodes',
     [],'ArrTLOF',[],'ArrFix_direction',[],'DepNodes',[],'DepEdges',[],'DepTLOF',[],'DepFix_direction', ...
     [],'gate',[], 'gateV', [], 'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', [], 'TAT',[], 'nodes',[],'edges',[]);
 
-num_flight = 5;
+num_flight = 10;
 flight_req_time = randi(60,[num_flight,1])*10 + randi(10,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -656,7 +656,7 @@ y7 = optimconstr(Nodes, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
         if (f1 ~= f2)
             common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);

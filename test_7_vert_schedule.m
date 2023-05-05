@@ -1,5 +1,6 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
+rng(26)
 seedUsed = rng;
 saveFile = 1;
 if saveFile
@@ -51,7 +52,7 @@ F=Twake.*FT;
 cooling_time=[2 4 6 8 10];
 
 global Edges Nodes flight_path_nodes flight_path_edges flight_class operator
-topo_1_dep_dir_2
+topo_1_dep_dir_3
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 
@@ -62,7 +63,7 @@ operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
-num_flight = 10;
+num_flight = 15;
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -626,12 +627,10 @@ y7 = optimconstr(Nodes, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
-        if (f1 ~= f2)
             common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);
             y7(common_nodes,i,j) = y_uij(common_nodes,i,j) + y_uij(common_nodes,j,i) == 1;
-        end
     end
 end
 
