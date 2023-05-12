@@ -1,5 +1,6 @@
 clear
 startTime = datetime; fprintf("Program Start time %s \n", startTime);
+rng(26)
 seedUsed = rng;
 saveFile = 1;
 if saveFile
