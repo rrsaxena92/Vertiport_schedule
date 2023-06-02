@@ -3,6 +3,7 @@ startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
 saveFile = 0;
+num_flight = 10;
 if saveFile
     fprintf("File is going to be saved \n");
 else
@@ -69,7 +70,7 @@ flight_set_struct = struct('name',[],'ArrReqTime',[],'DepReqTime',[],'ArrNodes',
     [],'ArrTLOF',[],'ArrFix_direction',[],'DepNodes',[],'DepEdges',[],'DepTLOF',[],'DepFix_direction', ...
     [],'gate',[], 'gateV', [], 'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', [], 'TAT',[], 'nodes',[],'edges',[]);
 
-num_flight = 10;
+
 flight_req_time = randi(60,[num_flight,1])*10 + randi(10,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
