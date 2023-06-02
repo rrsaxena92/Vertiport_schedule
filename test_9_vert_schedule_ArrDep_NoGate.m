@@ -1,12 +1,10 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
-rng(26)
+% rng(26)
 seedUsed = rng;
-saveFile = 1;
-num_flight = 5;
-fairness_enable = 0;
-P = 0.15;
-GateNode = 0;
+saveFile = 0;
+num_flight = 15;
+
 
 if saveFile
     fprintf("File is going to be saved \n");
@@ -58,7 +56,9 @@ cooling_time=[2 4 6 8 10];
 
 
 global Edges Nodes flight_path_nodes flight_path_edges flight_class operator descentDelay
-topo_1_dep_dir_4
+topo_1_arr_dep_dir_1
+% test_dir_1
+
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 15;
@@ -166,16 +166,6 @@ else
     dep_name_set = {' '};
 end
 
-% id = [6 4];
-% tmp = flight_set(id);
-% clear flight_set
-% flight_set = tmp;
-% flight_name_set = [flight_set.name];
-% tmp = arr_flight_set(id);
-% clear arr_flight_set
-% arr_flight_set = tmp;
-% arr_name_set = [arr_flight_set.name];
-% num_flight = length(flight_set);
 
 flight_0 = struct('name',"0-0-0",'reqTime',0,'direction',[],'nodes',{Nodes.all},'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[],'class',[],'coolTime',[]);
 a0 = flight_0.name;
@@ -208,7 +198,7 @@ t_iu  = optimvar('t_iu', flight_name_set, Nodes.all, 'LowerBound',0);
 y_uij = optimvar('y_uij', Nodes.all, [flight_set_0.name], [flight_set_0.name], 'LowerBound',0,'UpperBound',1, 'Type','integer');
 
 % Arrivals
-vertiIn = optimexpr(1,arr_name_set);
+vertiIn = optimexpr(1,{arr_name_set{:}});
 
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
@@ -218,7 +208,7 @@ end
 
 Qapproach = Wa_c*sum(vertiIn);
 
-taxiTimeArr = optimexpr(1,arr_name_set);
+taxiTimeArr = optimexpr(1,{arr_name_set{:}});
 
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
@@ -229,7 +219,7 @@ end
 
 QtaxiTimeArr = Wa_t*sum(taxiTimeArr);
 
-Landtime = optimexpr(1,arr_name_set);
+Landtime = optimexpr(1,{arr_name_set{:}});
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
     ui1 = arr_flight_set(f).nodes(4); % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
@@ -239,7 +229,7 @@ end
 
 QLand = W_r*sum(Landtime);
 
-taxiout = optimexpr(1,dep_name_set);
+taxiout = optimexpr(1,{dep_name_set{:}});
 
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
@@ -249,7 +239,7 @@ end
 
 Qtaxiout = W_g*sum(taxiout);
 
-taxiTimeDep = optimexpr(1,dep_name_set);
+taxiTimeDep = optimexpr(1,{dep_name_set{:}});
 
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
@@ -260,7 +250,7 @@ end
 
 QtaxiTimeDep = Wd_t*sum(taxiTimeDep);
 
-takeOfftime = optimexpr(1,dep_name_set);
+takeOfftime = optimexpr(1,{dep_name_set{:}});
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
     uiki = dep_flight_set(f).nodes(end-3); % ..,Last node, LaunchpadNode, Climb_a, Climb_b
@@ -270,7 +260,7 @@ end
 
 QtakeOff = W_q*sum(takeOfftime);
 
-climbTime = optimexpr(1,dep_name_set);
+climbTime = optimexpr(1,{dep_name_set{:}});
 
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
@@ -287,7 +277,7 @@ vertiOpt.Objective = (Qapproach + QLand + QtaxiTimeArr + Qtaxiout + QtaxiTimeDep
 fprintf("Formulating constraints.....");
 
 % ARAPR_i Arr C1
-vertiOpt.Constraints.ARAPR_i = optimconstr(arr_name_set);
+vertiOpt.Constraints.ARAPR_i = optimconstr({arr_name_set{:}});
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
     cb = arr_flight_set(f).nodes(1);
@@ -299,7 +289,7 @@ fprintf(" 0.1 ");
 
 % Gate out C2
 
-vertiOpt.Constraints.gateOutC1 = optimconstr(dep_name_set);
+vertiOpt.Constraints.gateOutC1 = optimconstr({dep_name_set{:}});
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
     g = dep_flight_set(f).nodes(1);
@@ -334,7 +324,7 @@ fprintf(" 5 ");
 
 % Collission C19
 
-vertiOpt.Constraints.Collison = collisonConstr(string([Edges.taxi,Edges.dir]), flight_set, y_uij);
+vertiOpt.Constraints.Collison = collisonConstr(string(Edges.all), flight_set, y_uij);
 
 fprintf(" 6 ");
 
@@ -348,7 +338,7 @@ fprintf(" 7 ");
 if ~isempty(arr_flight_set)
     % TLOF pad exit C21
 
-    vertiOpt.Constraints.TLOFexitArr = optimconstr(arr_name_set);
+    vertiOpt.Constraints.TLOFexitArr = optimconstr({arr_name_set{:}});
     for f = 1:length(arr_flight_set)
         i = arr_flight_set(f).name;
         r = arr_flight_set(f).TLOF;
@@ -382,34 +372,16 @@ end
 
 % Wake vortex separation C22
 
-vertiOpt.Constraints.wake = wakeConstr(flight_set, t_iu, y_uij,Twake);
+vertiOpt.Constraints.wake = wakeConstr(flight_set, t_iu, y_uij, Twake);
 
 fprintf(" 14 ");
 
-% Fairness constraints
-
-if fairness_enable
-    vertiOpt.Constraints.fairness = optimconstr(dep_name_set);
-
-    if GateNode
-        limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(1)) - x.reqTime, dep_flight_set)))/length(dep_flight_set));
-    else
-        limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(end)) - x.reqTime - sum(zeroDelayTime(x,Edges)), dep_flight_set)))/length(dep_flight_set));
-    end
-
-    for f = 1:length(dep_flight_set)
-        i = dep_flight_set(f).name;
-        if GateNode
-            g = dep_flight_set(f).nodes(1);
-            zeroTime = 0;
-        else
-            g = dep_flight_set(f).nodes(end);
-            zeroTime = sum(zeroDelayTime(dep_flight_set(f), Edges));
-        end
-        vertiOpt.Constraints.fairness(i) = t_iu(i, g) - dep_flight_set(f).reqTime - zeroTime<= limit;
-    end
-    fprintf(" 15 ");
+% Single occupancy of TLOF pad
+if ~isempty(arr_flight_set) && ~isempty(dep_flight_set)
+    vertiOpt.Constraints.TLOFpadSingle = TLOFpadSingleConstr(arr_flight_set, dep_flight_set, t_iu, y_uij);
 end
+
+fprintf(" 15 ");
 
 fprintf(" \n ");
 endTime = datetime;
@@ -747,7 +719,7 @@ end
 function TLOFClearArr = TLOFClearArrConstr(arr_flight_set,y_uij, t_iu)
 global M
 arr_name_set = [arr_flight_set.name];
-TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
+TLOFClearArr = optimconstr({arr_name_set{:}}, {arr_name_set{:}});
 for f1 = 1:length(arr_flight_set)
     i = arr_flight_set(f1).name;
     r1 = arr_flight_set(f1).TLOF;
@@ -767,7 +739,7 @@ end
 function TLOFenterDep = TLOFenterDepConstr(dep_flight_set, t_iu)
 
 dep_name_set = [dep_flight_set.name];
-TLOFenterDep = optimconstr(dep_name_set);
+TLOFenterDep = optimconstr({dep_name_set{:}});
 uiki = cellfun(@(d) string(d(end-3)), {dep_flight_set.nodes});
 r = [dep_flight_set.TLOF];
 constr = arrayfun(@(i,r,u) t_iu(i,r) >= t_iu(i,u), dep_name_set, r, uiki, 'UniformOutput', false);
@@ -796,46 +768,13 @@ for f1 = 1:length(flight_set)
         end
     end
 end
-
-% [I,J] = ndgrid(1:length(flight_set),1:length(flight_set));
-% idx = I~=J; % Index of all unique combinations of i and j
-%
-% flight_i = flight_set; % All unique flights in i
-% flight_j = flight_set; % All unique flights in j
-%
-% % Get the class of the flight and calculate Rsepij
-% class_i = [flight_i.class];
-% class_j = [flight_j.class];
-% Rsepij = Twake(class_i, class_j);
-%
-% % Get the TLOF of the flights
-% r_i = [flight_i.TLOF];
-% r_j = [flight_j.TLOF];
-%
-% % Check if the TLOF of the two flights are equal
-% is_same_r = r_i == r_j;
-%
-% % Get the names of the flights
-% name_i = [flight_i.name];
-% name_j = [flight_j.name];
-%
-% % Form the constraint
-% wakeVortex(is_same_r) = t_iu(name_j(is_same_r),r_j(is_same_r)) >= t_iu(name_i(is_same_r),r_i(is_same_r)) + Rsepij(is_same_r) - (1-x_uij(r_i(is_same_r),name_i(is_same_r),name_j(is_same_r)))*M;
-
-% [f1, f2] = ndgrid(1:length(flight_set));
-% idx = find(f1 ~= f2 & strcmp({flight_set(f1).TLOF}, {flight_set(f2).TLOF}));
-% i = {flight_set(f1(idx)).name};
-% j = {flight_set(f2(idx)).name};
-% r = {flight_set(f1(idx)).TLOF};
-% Rsepij = arrayfun(@(k) Twake(flight_set(f1(idx(k))).class, flight_set(f2(idx(k))).class), 1:numel(idx));
-% wakeVortex(i,j) = t_iu(j,r) >= t_iu(i,r) + Rsepij - (1-x_uij(r,i,j))*M;
 end
 
 function TLOFenter2Dep = TLOFenter2DepConstr(dep_flight_set, t_iu, y_uij)
 
 global M
 dep_name_set = [dep_flight_set.name];
-TLOFenter2Dep = optimconstr(dep_name_set, dep_name_set);
+TLOFenter2Dep = optimconstr({dep_name_set{:}}, {dep_name_set{:}});
 for f1 = 1:length(dep_flight_set)
     i = dep_flight_set(f1).name;
     r1 = dep_flight_set(f1).TLOF;
