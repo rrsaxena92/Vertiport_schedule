@@ -61,7 +61,7 @@ global Edges Nodes flight_path_nodes flight_path_edges flight_class operator des
 topo_1_dep_dir_4
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
-descentDelay = 15;
+descentDelay = 20;
 %% FLight set
 
 flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
@@ -193,7 +193,7 @@ Wa_t = 8; % Weight for time spent waiting on taxiing by arrival flight
 Wd_t = 8; % Weight for time spent waiting on taxiing by departure flight
 
 global M
-M = ceil(num_flight/10 +1)*200; % Till 10 flights its 200, till 20 flights its 400, till 30 flihts its 600
+M = ceil(num_flight/10 +1)*400; % Till 10 flights its 400, till 20 flights its 800, till 30 flihts its 1200
 
 inputs.Twake = Twake;
 inputs.Edges = Edges;
@@ -394,7 +394,7 @@ if fairness_enable
     if GateNode
         limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(1)) - x.reqTime, dep_flight_set)))/length(dep_flight_set));
     else
-        limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(end)) - x.reqTime - sum(zeroDelayTime(x,Edges)), dep_flight_set)))/length(dep_flight_set));
+        limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(end)) - x.reqTime, dep_flight_set)))/length(dep_flight_set));
     end
 
     for f = 1:length(dep_flight_set)
@@ -404,7 +404,7 @@ if fairness_enable
             zeroTime = 0;
         else
             g = dep_flight_set(f).nodes(end);
-            zeroTime = sum(zeroDelayTime(dep_flight_set(f), Edges));
+            zeroTime = 0;
         end
         vertiOpt.Constraints.fairness(i) = t_iu(i, g) - dep_flight_set(f).reqTime - zeroTime<= limit;
     end
@@ -441,20 +441,23 @@ end
 if saveFile
     datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
     folder = "Results";
-    if isempty(flight_sol)
-        strctTbl = struct2table(flight_set);
-        filename = "flight_set_" + num2str(num_flight) + '_' + datefmt + ".csv";
-        filePath = folder + "//" + filename;
-        writetable(strctTbl,filePath,'Delimiter',',');
-    else
-        strctTbl = struct2table(flight_sol.flight_sol_set);
-        filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt + ".csv";
-        filePath = folder + "//" + filename;
-        writetable(strctTbl,filePath,'Delimiter',',');
-    end
     filename = "seed_" + num2str(num_flight) + '_' + datefmt + ".mat";
     filePath = folder + "//" + filename;
     save(filePath,'seedUsed');
+    if isempty(flight_sol)
+        strctTbl = struct2table(flight_set);
+        filename = "flight_set_" + num2str(num_flight) + '_' + datefmt;
+        ext = ".csv";
+        filePath = folder + "//" + filename + ext;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    else
+        strctTbl = struct2table(flight_sol.flight_sol_set);
+        filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt;
+        ext = ".csv";
+        filePath = folder + "//" + filename+ ext;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    end
+
 end
 
 fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
@@ -549,25 +552,25 @@ else
 end
 end
 
-function timetaken = zeroDelayTime(flight, Edges)
+function timetaken = zeroDelayTime(flight)
 
 timeOnTaxi = 0;
 if flight.direction == "arr"
-    timeOnapproach = (get_edge_length(flight.edges(1), Edges)/flight.slant_climb_speed)-5;
-    timeOnOVF = (get_edge_length(flight.edges(2), Edges)/flight.vertical_climb_speed)-5;
+    timeOnapproach = (get_edge_length(flight.edges(1))/flight.slant_climb_speed)-5;
+    timeOnOVF = (get_edge_length(flight.edges(2))/flight.vertical_climb_speed)-5;
 
     for e = 4:(length(flight.edges)) % Last taxi node to TLOF not counted
-        timeOnTaxi = timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed)-5;
+        timeOnTaxi = timeOnTaxi + (get_edge_length(flight.edges(e))/flight.taxi_speed)-5;
     end
     timetaken = [timeOnTaxi, timeOnOVF, timeOnapproach];
 
 else % dep
     for e = 1:(length(flight.edges)-3) % Last taxi node to TLOF not counted
-        timeOnTaxi = max(timeOnTaxi + (get_edge_length(flight.edges(e), Edges)/flight.taxi_speed) - 5,0);
+        timeOnTaxi = max(timeOnTaxi + (get_edge_length(flight.edges(e))/flight.taxi_speed) - 5,0);
     end
 
-    timeOnOVF = max((get_edge_length(flight.edges(end-1), Edges)/flight.vertical_climb_speed) - 5,0);
-    timeOnclimb = max((get_edge_length(flight.edges(end), Edges)/flight.slant_climb_speed) - 5,0);
+    timeOnOVF = max((get_edge_length(flight.edges(end-1))/flight.vertical_climb_speed) - 5,0);
+    timeOnclimb = max((get_edge_length(flight.edges(end))/flight.slant_climb_speed) - 5,0);
     timetaken = [timeOnTaxi, timeOnOVF, timeOnclimb];
 end
 
