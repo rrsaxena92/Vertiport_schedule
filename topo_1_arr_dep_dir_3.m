@@ -1,9 +1,31 @@
 Nodes.gates = {'G1','G2','G3','G4'};
-Nodes.taxi  = {'a','b','c'};
+%Nodes.gatesEn = cellfun(@(x) [x '_en'],Nodes.gates,'UniformOutput',false);
+%Nodes.gatesEx = cellfun(@(x) [x '_ex'],Nodes.gates,'UniformOutput',false);
+Nodes.taxi  = {'a','b'};
+Nodes.TLOFen = {'c'};
+Nodes.TLOFex = {'c'};
 Nodes.TLOF  = {'R2'};
 Nodes.OVF   = {'X'};
 Nodes.dir   = {'N','E','W'};
-Nodes.all   = [[Nodes.gates], [Nodes.taxi], [Nodes.TLOF], [Nodes.OVF], [Nodes.dir]];
+
+gateCapacity = 3;
+
+new_nodes = cell(1, length(Nodes.gates)*(gateCapacity));  % Pre-allocate new node cell array
+count = 0;  % Initialize count
+
+% Loop over gates
+for g = 1:length(Nodes.gates)
+    gate = Nodes.gates{g};
+    % Loop over gate capacity
+    for c = 0:gateCapacity
+        count = count + 1;  % Increment count
+        new_nodes{count} = sprintf('%s%c%d', gate, 'c', c);  % Create new node name and store in cell array
+    end
+end
+
+Nodes.gateC = new_nodes;
+Nodes.all   = unique([[Nodes.gates], [Nodes.gateC], [Nodes.taxi], [Nodes.TLOF], [Nodes.TLOFen], [Nodes.TLOFex], [Nodes.OVF], [Nodes.dir]]);
+
 
 Edges.gate = {'G1-a','G3-a','G2-b','G4-b', 'a-G1', 'a-G3', 'b-G2', 'b-G4'};
 Edges.taxi = {'a-b','b-c', 'b-a', 'c-b'};
@@ -13,7 +35,7 @@ Edges.dir  = {'X-N', 'N-X','X-E','E-X','X-W','W-X'};
 Edges.all  = [[Edges.gate], [Edges.taxi], [Edges.TLOF], [Edges.OVF], [Edges.dir]];
 
 
-flight_path_nodes={
+flight_path_nodes_dep={
 {'G1','a','b','c','R2','X','N'};
 {'G1','a','b','c','R2','X','E'};
 {'G1','a','b','c','R2','X','W'};
@@ -26,6 +48,9 @@ flight_path_nodes={
 {'G4','b','c','R2','X','N'};
 {'G4','b','c','R2','X','E'};
 {'G4','b','c','R2','X','W'};
+};
+
+flight_path_nodes_arr={
 {'N','X','R2','c','b','a','G1'};
 {'E','X','R2','c','b','a','G1'};
 {'W','X','R2','c','b','a','G1'};
@@ -40,7 +65,7 @@ flight_path_nodes={
 {'W','X','R2','c','b','G4'};
 };
 
-flight_path_edges={
+flight_path_edges_dep={
 {'G1-a','a-b','b-c','c-R2','R2-X','X-N'};
 {'G1-a','a-b','b-c','c-R2','R2-X','X-E'};
 {'G1-a','a-b','b-c','c-R2','R2-X','X-W'};
@@ -53,6 +78,9 @@ flight_path_edges={
 {'G4-b','b-c','c-R2','R2-X','X-N'};
 {'G4-b','b-c','c-R2','R2-X','X-E'};
 {'G4-b','b-c','c-R2','R2-X','X-W'};
+};
+
+flight_path_edges_arr={
 {'N-X','X-R2','R2-c','c-b','b-a','a-G1'};
 {'E-X','X-R2','R2-c','c-b','b-a','a-G1'};
 {'W-X','X-R2','R2-c','c-b','b-a','a-G1'};

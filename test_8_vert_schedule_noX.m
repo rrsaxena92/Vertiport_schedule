@@ -54,11 +54,10 @@ FT=[(FDT/5) (2*FDT/5) (3*FDT/5) (4*FDT/5) (FDT);2*FDT/5 2*FDT/5 3*FDT/5 4*FDT/5 
 F=Twake.*FT;
 % disp(ceil(F));
 
-cooling_time=[2 4 6 8 10];
+cooling_time = [2 4 6 8 10];
 
 
 global Edges Nodes flight_path_nodes flight_path_edges flight_class operator descentDelay
-topo_1_dep_dir_4
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 20;
@@ -133,7 +132,7 @@ if ~isempty(arr_flight_set)
                     if strcmp(arr_flight_set(f1).fix_direction, arr_flight_set(f2).fix_direction)
                         % Calculate time difference between reqTime values
                         time_diff = abs(arr_flight_set(f1).reqTime - arr_flight_set(f2).reqTime);
-                        req_time_diff = D_sep_fix(flight_set(f1).class, flight_set(f2).class) / maxSlantClimbSpeed + extraDelay;
+                        req_time_diff = D_sep_fix(arr_flight_set(f1).class, arr_flight_set(f2).class) / maxSlantClimbSpeed + extraDelay;
                         if 0 < round(req_time_diff - time_diff,2)
                             % Add time difference to the flight with higher reqTime value
                             if arr_flight_set(f2).reqTime  > arr_flight_set(f1).reqTime
