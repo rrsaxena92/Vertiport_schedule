@@ -28,7 +28,7 @@ end
 %    end
 % end
 
-flight_sol_struct = struct("name",[],"type",[],"ArrReqTime",[],"DepReqTime",[],"Gate",[],"ArrTLOF",[],"ArrFix_direction",[],"DepTLOF",[],"DepFix_direction",[],"taxi_speed",[],"vertical_climb_speed",[],"slant_climb_speed",[],"class",[],"coolTime",[],"TAT",[],...
+flight_sol_struct = struct("name",[],"type",[],"ArrReqTime",[],"DepReqTime",[],"Gate",[],"ArrTLOF",[],"ArrFix_direction",[],"DepTLOF",[],"DepFix_direction",[],"taxi_speed",[],"vertical_climb_speed",[],"slant_climb_speed",[],"class",[],"TOT",[],"TAT",[],...
     "nodes",[],"edges",[],"nodeTime",[],"ArrNodes",[],"ArrEdges",[],"ArrTLOFtime",[],"ArrGateTime",...
     [],"ArrfixTimeTaken",[],"ArrTLOFTimeTaken",[],"ArrTLOFexitTimeTaken",[],"ArrTaxiTimeTaken",[],"ArrTotalTimeTaken",[],"ArrfixDelay",[],"ArrOFVdelay",...
     [],"ArrTaxidelay",[],"ArrZeroDelayTime",[],"TurnAroundTime",[],"DepNodes",[],"DepEdges",[],...
@@ -45,7 +45,7 @@ for f = 1:num_flight
     flight.vertical_climb_speed   = flight_set(f).vertical_climb_speed;
     flight.slant_climb_speed   = flight_set(f).slant_climb_speed;
     flight.class   = flight_set(f).class;
-    flight.coolTime   = flight_set(f).coolTime;
+    flight.TOT   = flight_set(f).TOT;
     flight.TAT  =  flight_set(f).TAT;
 
     flight.nodes = flight_set(f).nodes;
@@ -73,7 +73,7 @@ for f = 1:num_flight
 		flight.ArrfixDelay = flight.ArrfixTimeTaken -zeroTime(3);
         flight.ArrOFVdelay = flight.ArrTLOFTimeTaken - zeroTime(2);
 		flight.ArrTaxidelay = flight.ArrTaxiTimeTaken - zeroTime(1);
-        flight.ArrZeroDelayTime = sum(zeroTime) + flight.coolTime;
+        flight.ArrZeroDelayTime = sum(zeroTime) + flight.TOT;
         flight.Gate = flight_set(f).Gate;
 
         flight.TurnAroundTime = 0;        
@@ -140,7 +140,7 @@ for f = 1:num_flight
 		flight.DepTaxidelay = flight.DepTaxiTimeTaken - zeroTime(1);
         flight.DepOFVdelay = flight.DepTLOFexitTimeTaken - zeroTime(2);
 		flight.DepfixDelay = flight.DepfixTimeTaken -zeroTime(3);
-        flight.DepZeroDelayTime = sum(zeroTime);
+        flight.DepZeroDelayTime = sum(zeroTime) + flight.TOT;
         
         flight.zeroDelayTime = flight.DepZeroDelayTime;
         flight.TotalTimeTaken = flight.DepTotalTimeTaken;
@@ -152,7 +152,7 @@ for f = 1:num_flight
         flight_tat.vertical_climb_speed   = flight.vertical_climb_speed;
         flight_tat.slant_climb_speed   = flight.slant_climb_speed;
         flight_tat.class   = flight.class;
-        flight_tat.coolTime   = flight.coolTime;
+        flight_tat.TOT   = flight.TOT;
         flight_tat.TAT  =  flight.TAT;     
         flight_tat.Gate = flight_set(f).Gate;
 
@@ -206,12 +206,12 @@ for f = 1:num_flight
             flight_tat.ArrfixDelay = flight_tat.ArrfixTimeTaken -zeroTime(1);
             flight_tat.ArrOFVdelay = flight_tat.ArrTLOFTimeTaken - zeroTime(2);
 		    flight_tat.ArrTaxidelay = flight_tat.ArrTaxiTimeTaken - zeroTime(3);
-            flight_tat.ArrZeroDelayTime = sum(zeroTime(1:3)) + flight.coolTime;
+            flight_tat.ArrZeroDelayTime = sum(zeroTime(1:3)) + flight.TOT;
     
 		    flight_tat.DepTaxidelay = flight_tat.DepTaxiTimeTaken - zeroTime(4);
             flight_tat.DepOFVdelay = flight_tat.DepTLOFexitTimeTaken - zeroTime(5);
 		    flight_tat.DepfixDelay = flight_tat.DepfixTimeTaken -zeroTime(6);
-            flight_tat.DepZeroDelayTime = sum(zeroTime(4:6));
+            flight_tat.DepZeroDelayTime = sum(zeroTime(4:6)) + flight.TOT;
             
             flight_tat.zeroDelayTime = flight_tat.ArrZeroDelayTime + flight_tat.DepZeroDelayTime + flight.TAT;
             flight_tat.TotalTimeTaken = flight_tat.nodeTime(end) - flight_tat.nodeTime(1);

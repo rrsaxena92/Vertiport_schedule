@@ -1,12 +1,12 @@
 import pandas as pd
 import os
 
-folder = "E:/Digital_Twin_and_UAM/ATFM_code/Vertiport_schedule/misc/Matlab simulation for arrival 5,10,15,20 for dir 1,2,3,4"
+folder = "E:/Digital_Twin_and_UAM/ATFM_code/Vertiport_schedule/misc/Test 10"
 outFolder = "E:/Digital_Twin_and_UAM/ATFM_code/Vertiport_schedule/misc/"
-outFilename = "ArrivalsOnlyNoX"
+outFilename = "ArrDepTat"
 
 # List the CSV files in the directory
-csv_files = [file for file in os.listdir(folder) if file.endswith('.csv')]
+csv_files = [file for file in os.listdir(folder) if (file.endswith('.csv') and "sol" in file)]
 
 # Initialize an empty DataFrame for the combined data
 combined_data = pd.DataFrame(columns=['Num_flights', 'Num_directions', 'Delay'])
@@ -20,7 +20,16 @@ for file in csv_files:
     num_flights = len(data['name'].unique())
 
     # Count the number of unique directions
-    num_directions = len(data['fix_direction'].unique())
+    # Append the two columns into a single series
+    dep_fix_direction = data['DepFix_direction']
+    arr_fix_direction = data['ArrFix_direction']
+    appended_series = dep_fix_direction.append(arr_fix_direction, ignore_index=True)
+
+    # Remove values 0 and 'nan' from the series
+    fix_directions = appended_series[(appended_series != '0') & (~pd.isna(appended_series))]
+
+    # num_directions = len(data['fix_direction'].unique())
+    num_directions = len(fix_directions.unique())
 
     # Extract the 'delay' column as it is
     delay = data['delay']

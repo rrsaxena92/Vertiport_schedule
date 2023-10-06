@@ -9,7 +9,7 @@ plt.rcParams['ps.fonttype'] = 42
 figFolder = "E:/Digital_Twin_and_UAM/Figures"
 
 folder = "E:/Digital_Twin_and_UAM/ATFM_code/Vertiport_schedule/misc/"
-filename = "ArrivalsOnlyNoXtopo1"
+filename = "ArrDepTat"
 ext = ".csv"
 
 vertdf_dir = pd.read_csv(folder + "/" + filename + ext)

@@ -50,7 +50,7 @@ FDT=(inclination_climb_edge_length/m1);
 FT=[(FDT/5) (2*FDT/5) (3*FDT/5) (4*FDT/5) (FDT);2*FDT/5 2*FDT/5 3*FDT/5 4*FDT/5 FDT;3*FDT/5 3*FDT/5 3*FDT/5 4*FDT/5 FDT;4*FDT/5 4*FDT/5 4*FDT/5 4*FDT/5 FDT;FDT FDT FDT FDT FDT];
 F=Twake.*FT;
 
-cooling_time=[2 4 6 8 10];
+TOT = [2 4 6 8 10];
 TAT = [90, 120, 150, 210, 300];
 
 global Edges Nodes  flight_class operator descentDelay Qdelay% flight_path_nodes flight_path_edges
@@ -69,7 +69,7 @@ flight_set_type = ["arr", "dep","tat"];
 
 flight_set_struct = struct('name',[],'type', [],'ArrReqTime',[],'DepReqTime',[],'ArrNodes',[],'ArrEdges', ...
     [],'ArrTLOF',[],'ArrFix_direction',[],'DepNodes',[],'DepEdges',[],'DepTLOF',[],'DepFix_direction', ...
-    [],'Gate',[], 'gateV', [], 'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', [], 'TAT',[], 'nodes',[],'edges',[]);
+    [],'Gate',[], 'gateV', [], 'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'TOT', [], 'TAT',[], 'nodes',[],'edges',[]);
 
 
 flight_req_time = randi(60,[num_flight,1])*10 + randi(10,[num_flight,1]);
@@ -95,10 +95,10 @@ for f = 1:num_flight
     flight.vertical_climb_speed = vertical_climb_speed;
     flight.slant_climb_speed = SlantClimbSpeed;
     flight.class = UAM_class(flight);
-    flight.coolTime = cooling_time(flight.class);
+    flight.TOT = TOT(flight.class);
     flight.TAT = TAT(flight.class);
 
-    flight.type = flight_set_type(randi(length(flight_set_type))); % Randomly choosing direction
+    flight.type = "dep" %flight_set_type(randi(length(flight_set_type))); % Randomly choosing direction
     
     if flight.type == "dep"
         x = randi(length(flight_path_nodes_dep));
@@ -121,7 +121,7 @@ for f = 1:num_flight
         flight.vertical_climb_speed = vertical_climb_speed;
         flight.slant_climb_speed = SlantClimbSpeed;
         flight.class = UAM_class(flight);
-        flight.coolTime = cooling_time(flight.class);
+        flight.TOT = TOT(flight.class);
         flight.TAT = TAT(flight.class);
         
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
@@ -152,7 +152,7 @@ for f = 1:num_flight
         flight.vertical_climb_speed = vertical_climb_speed;
         flight.slant_climb_speed = SlantClimbSpeed;
         flight.class = UAM_class(flight);
-        flight.coolTime = cooling_time(flight.class);
+        flight.TOT = TOT(flight.class);
         flight.TAT = TAT(flight.class);
         
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
@@ -169,7 +169,7 @@ for f = 1:num_flight
         flight.vertical_climb_speed = vertical_climb_speed;
         flight.slant_climb_speed = SlantClimbSpeed;
         flight.class = UAM_class(flight);
-        flight.coolTime = cooling_time(flight.class);
+        flight.TOT = TOT(flight.class);
         flight.TAT = TAT(flight.class);
 
         flight.name = name + "_Arr";
@@ -327,10 +327,6 @@ if ~isempty(arr_flight_set)
 end
 
 num_flight_tot = length(flight_set);
-
-flight_0 = struct('name',"0-0-0",'type', [],'ArrReqTime',0,'DepReqTime',0,'ArrNodes',{Nodes.all},'ArrEdges', ...
-    [],'ArrTLOF',[],'ArrFix_direction',[],'DepNodes',[],'DepEdges',[],'DepTLOF',[],'DepFix_direction', ...
-    [],'Gate',[],'gateV', [], 'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', [], 'TAT',[], 'nodes',[],'edges',[]);
 
 fprintf("Num flights %d (%d), dep %d (%d) arr %d (%d) tat %d \n", num_flight_tot,num_flight, length(dep_flight_set), (length(dep_flight_set)-length(tat_flight_set)) , length(arr_flight_set),(length(arr_flight_set)-length(tat_flight_set)), length(tat_flight_set))
 %% Parameters
@@ -529,8 +525,8 @@ if ~isempty(arr_flight_set)
         i = arr_flight_set(f).name;
         r = arr_flight_set(f).ArrTLOF;
         ui1 = arr_flight_set(f).ArrNodes(4);% Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-        Ticool = arr_flight_set(f).coolTime;
-        vertiOpt.Constraints.TLOFexitArr(i) = t_iu(i,ui1) >= t_iu(i,r) + Ticool;
+        TOTi = arr_flight_set(f).TOT;
+        vertiOpt.Constraints.TLOFexitArr(i) = t_iu(i,ui1) >= t_iu(i,r) + TOTi;
     end
 
     fprintf(" 7 ");
@@ -698,7 +694,7 @@ taxiedges = intersect(edges,[Edges.taxi, Edges.gate]);
 
 fixTime = timeonedge(flight, edges{1})-5;
 OVFtime = timeonedge(flight, edges{2})-5;
-coolTime = flight.coolTime;
+TOT = flight.TOT;
 
 taxiTime = 0;
 
@@ -710,7 +706,7 @@ TAT = flight.TAT;
 
 
 
-depTime = fixTime + OVFtime + coolTime + taxiTime + TAT + Qdelay;
+depTime = fixTime + OVFtime + TOT + taxiTime + TAT + Qdelay;
 
 end
 %% Constraints Functions
@@ -938,7 +934,8 @@ end
 TLOFenterDep = optimconstr(flight_name_set);
 uiki = cellfun(@(d) string(d(end-3)), {flight_set.DepNodes});
 r = [flight_set.DepTLOF];
-constr = arrayfun(@(i,r,u) t_iu(i,r) >= t_iu(i,u), flight_name_set, r, uiki, 'UniformOutput', false);
+TOT = [flight_set.TOT];
+constr = arrayfun(@(i,r,u,toti) t_iu(i,r) >= t_iu(i,u) + toti, flight_name_set, r, uiki, TOT, 'UniformOutput', false);
 TLOFenterDep(flight_name_set) = [constr{:}];
 
 end
