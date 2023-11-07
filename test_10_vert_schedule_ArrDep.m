@@ -2,8 +2,6 @@ clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
-saveFile = 1;
-num_flight = 15;
 
 if saveFile
     fprintf("File is going to be saved \n");
@@ -55,12 +53,12 @@ TAT = [90, 120, 150, 210, 300];
 
 global Edges Nodes  flight_class operator descentDelay Qdelay% flight_path_nodes flight_path_edges
 
-topo_1_arr_dep_dir_1
+topo_1_arr_dep_dir_3
 
 Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
-descentDelay = 15;
+descentDelay = 0;
 Qdelay = 0;
-extraDelayArr = 12;
+extraDelayArr = 2.5; %12
 %% FLight set
 
 flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
@@ -88,7 +86,7 @@ for f = 1:num_flight
     if num_flight > 1
         flight.name = string(flight_class(q)) + '-' + string(operator(o))+'-'+f;
     else
-        flight.name = {'Super-xx-1'};
+        flight.name = {'Small-xx-1'};
     end
 
     flight.taxi_speed = edge_taxi_speed;
@@ -98,8 +96,8 @@ for f = 1:num_flight
     flight.TOT = TOT(flight.class);
     flight.TAT = TAT(flight.class);
 
-    flight.type = "dep" %flight_set_type(randi(length(flight_set_type))); % Randomly choosing direction
-    
+    flight.type = flight_set_type(randi(length(flight_set_type))); % Randomly choosing direction
+
     if flight.type == "dep"
         x = randi(length(flight_path_nodes_dep));
         n = flight_path_nodes_dep{x};
@@ -123,7 +121,7 @@ for f = 1:num_flight
         flight.class = UAM_class(flight);
         flight.TOT = TOT(flight.class);
         flight.TAT = TAT(flight.class);
-        
+
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
         flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
 
@@ -146,18 +144,18 @@ for f = 1:num_flight
         flight.DepNodes = [];
         flight.DepEdges = [];
         flight.DepTLOF  = [];
-        flight.DepFix_direction = [];       
-        
+        flight.DepFix_direction = [];
+
         flight.taxi_speed = edge_taxi_speed;
         flight.vertical_climb_speed = vertical_climb_speed;
         flight.slant_climb_speed = SlantClimbSpeed;
         flight.class = UAM_class(flight);
         flight.TOT = TOT(flight.class);
         flight.TAT = TAT(flight.class);
-        
+
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
         flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
-        
+
         arr_flight_set = [arr_flight_set flight];
         flight_set = [flight_set flight];
 
@@ -183,13 +181,13 @@ for f = 1:num_flight
         flight.Gate = flight.ArrNodes{end}; %Nodes.gates{strcmp(flight.ArrNodes{end},Nodes.gatesEn)};
 
         flight.gateV = [];
-              
+
         flight.DepReqTime = flight.ArrReqTime + calcDepReqTime(flight);
         flight.DepNodes = [];
         flight.DepEdges = [];
         flight.DepTLOF  = [];
         flight.DepFix_direction = [];
-        
+
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
         flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
 
@@ -199,11 +197,11 @@ for f = 1:num_flight
         flight.name = name + "_Dep";
         n = flight_path_nodes_dep{x};
         flight.gateV = [];
-              
-        
+
+
         flight.DepNodes = n;
         flight.DepEdges = flight_path_edges_dep{x};
-        
+
         flight.DepTLOF  = string(n{length(n)-2});
         flight.DepFix_direction = string(n{length(n)});
 
@@ -219,14 +217,14 @@ for f = 1:num_flight
         flight_set = [flight_set flight];
 
         flight.name = name;
-        n = flight_path_nodes_arr{x};        
+        n = flight_path_nodes_arr{x};
         flight.ArrNodes = [];%flight_path_nodes_arr{x};
         flight.ArrEdges = [];%flight_path_edges_arr{x};
         flight.ArrTLOF  = string(n{3});
         flight.ArrFix_direction = string(n{1});
 
         flight.gateV = arrayfun(@(x) [flight.Gate, 'c',num2str(x)], 0:gateCapacity, 'UniformOutput', false);
-        
+
         flight.DepNodes = [];%flight_path_nodes_dep{x};
         flight.DepEdges = [];%flight_path_edges_dep{x};
         n = flight_path_nodes_dep{x};
@@ -235,7 +233,7 @@ for f = 1:num_flight
 
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
         flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
-        
+
         tat_flight_set = [tat_flight_set flight];
         flight_set = [flight_set flight];
 
@@ -243,14 +241,14 @@ for f = 1:num_flight
         fprintf("Invalid set of flight %s number %d", flight.type, f);
     end
 
-  
+
 
 end
 
 
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 if ~isempty(dep_flight_set)
     dep_name_set = [dep_flight_set.name];
@@ -268,7 +266,7 @@ if ~isempty(arr_flight_set)
     end
 else
     arr_name_set = {' '};
-end    
+end
 if ~isempty(tat_flight_set)
     tat_name_set = [tat_flight_set.name];
     if length(tat_name_set) == 1
@@ -296,6 +294,8 @@ if ~isempty(arr_flight_set)
                                 arr_flight_set(f2).ArrReqTime = arr_flight_set(f2).ArrReqTime + (req_time_diff - time_diff);
                                 i = find(flight_name_set == arr_flight_set(f2).name);
                                 flight_set(i).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                % Changing the ArrReqTime and DepReqTime in
+                                % all the sets
                                 if arr_flight_set(f2).type == "tat"
                                     name = erase(arr_flight_set(f2).name, "_Arr");
                                     i = find(flight_name_set == name);
@@ -303,6 +303,12 @@ if ~isempty(arr_flight_set)
                                     flight_set(i).DepReqTime = flight_set(i).ArrReqTime + calcDepReqTime(arr_flight_set(f2));
                                     j = find(dep_name_set == (name+"_Dep"));
                                     dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
+                                    dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
+                                    k = find(flight_name_set == (name+"_Dep"));
+                                    flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                    flight_set(k).DepReqTime = flight_set(i).DepReqTime;
+                                    l = find(arr_flight_set(f2).name == flight_name_set);
+                                    flight_set(l).DepReqTime = flight_set(i).DepReqTime;
                                 end
                             else
                                 arr_flight_set(f1).ArrReqTime = arr_flight_set(f1).ArrReqTime + (req_time_diff - time_diff);
@@ -315,6 +321,12 @@ if ~isempty(arr_flight_set)
                                     flight_set(i).DepReqTime = flight_set(i).ArrReqTime + calcDepReqTime(arr_flight_set(f1));
                                     j = find(dep_name_set == (name+"_Dep"));
                                     dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
+                                    dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
+                                    k = find(flight_name_set == (name+"_Dep"));
+                                    flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                    flight_set(k).DepReqTime = flight_set(i).DepReqTime;
+                                    l = find(arr_flight_set(f2).name == flight_name_set);
+                                    flight_set(l).DepReqTime = flight_set(i).DepReqTime;
                                 end
                             end
                             all_time_diff_met = false;
@@ -563,17 +575,17 @@ if ~isempty(arr_flight_set) && ~isempty(dep_flight_set)
 end
 fprintf(" 12.1 ")
 if ~isempty(tat_flight_set)
-    % Conitinuity for gate entry exit and Q
-    vertiOpt.Constraints.GateQ = GateQconstr(tat_flight_set, arr_flight_set, dep_flight_set, t_iu, gateCapacity);
 
+    % Conitinuity for gate entry exit and Q
+    vertiOpt.Constraints.GateQ = GateQconstr1(tat_flight_set, arr_flight_set, dep_flight_set, t_iu);
     fprintf(" 13.1 ");
-    % Next slot time Qorder C17
-    vertiOpt.Constraints.Qorder = QorderConstr(tat_flight_set, t_iu, gateCapacity);
+    [vertiOpt.Constraints.GateQ_gen, vertiOpt.Constraints.GateQ_gex] = GateQconstr2(tat_flight_set, arr_flight_set, dep_flight_set, y_uij);
 
     fprintf(" 13.2 ");
 
-    % FCFS order on gate  FCFS C17.1
-    vertiOpt.Constraints.FCFS = FCFSconstr(tat_flight_set, t_iu, y_uij, gateCapacity);
+    [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij);
+
+
     fprintf(" 13.3 ");
 end
 
@@ -586,6 +598,8 @@ Formulationtime = endTime - startTime;
 
 x0.t_iu  = zeros(length(flight_set), length(Nodes.all));
 x0.y_uij = zeros(length(Nodes.all), length(flight_set), length(flight_set));
+x0.y1 = zeros(length(tat_flight_set), length(tat_flight_set));
+
 
 startTime = datetime; fprintf("Start time %s \n", startTime);
 vertiOpt_sol = solve(vertiOpt, x0);
@@ -742,7 +756,7 @@ end
 function ytime = YtimeConstr(Nodes, flight_set, t_iu, y_uij, M)
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 ytime = optimconstr(Nodes, flight_name_set, flight_name_set);
 
@@ -768,7 +782,7 @@ function y7 = y7Constr(Nodes,flight_set,y_uij)
 
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 y7 = optimconstr(Nodes, flight_name_set, flight_name_set);
 
@@ -788,7 +802,7 @@ function Overtake = overtakeConstr(flight_set,Edges,y_uij)
 
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 Overtake = optimconstr(string(setdiff(Edges.all, [Edges.OVF,Edges.TLOF])), flight_name_set, flight_name_set);
 
@@ -814,7 +828,7 @@ function Collision = collisonConstr(Edges, flight_set, y_uij)
 
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 Collision = optimconstr(Edges, flight_name_set, flight_name_set);
 
@@ -842,7 +856,7 @@ function taxiSeparation1 = taxiseparationConstr(Edges, flight_set, D_sep_taxi, y
 
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 taxiSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
@@ -869,7 +883,7 @@ function fixSeparation1 = fixseparationConstr(Edges, flight_set, D_sep_fix, y_ui
 
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 fixSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
@@ -897,9 +911,9 @@ function TLOFClearArr = TLOFClearArrConstr(flight_set,y_uij, t_iu)
 global M
 if length(flight_set) > 1
     flight_name_set = [flight_set.name];
-if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
-end
+    if length(flight_name_set) == 1
+        flight_name_set = {flight_name_set{:}};
+    end
 else
     flight_name_set = {flight_set.name{:}};
 end
@@ -925,9 +939,9 @@ function TLOFenterDep = TLOFenterDepConstr(flight_set, t_iu)
 
 if length(flight_set) > 1
     flight_name_set = [flight_set.name];
-if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
-end
+    if length(flight_name_set) == 1
+        flight_name_set = {flight_name_set{:}};
+    end
 else
     flight_name_set = {flight_set.name{:}};
 end
@@ -946,7 +960,7 @@ function wakeVortex = wakeConstr(flight_set, t_iu, y_uij,Twake)
 global M Nodes
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
+    flight_name_set = {flight_name_set{:}};
 end
 wakeVortex = optimconstr(Nodes.TLOF, flight_name_set,flight_name_set);
 
@@ -973,9 +987,9 @@ function TLOFenter2Dep = TLOFenter2DepConstr(flight_set, t_iu, y_uij)
 global M
 if length(flight_set) > 1
     flight_name_set = [flight_set.name];
-if length(flight_name_set) == 1
-	flight_name_set = {flight_name_set{:}};
-end
+    if length(flight_name_set) == 1
+        flight_name_set = {flight_name_set{:}};
+    end
 else
     flight_name_set = {flight_set.name{:}};
 end
@@ -1020,30 +1034,30 @@ end
 
 end
 
-function GateQ = GateQconstr(tat_flight_set, arr_flight_set, dep_flight_set, t_iu, gateCapacity)
+function [GateQ] = GateQconstr1(tat_flight_set, arr_flight_set, dep_flight_set, t_iu)
 
-if length(tat_flight_set) > 1
+if length(tat_flight_set) >= 1
     tat_name_set = [tat_flight_set.name];
     if length(tat_name_set) == 1
-    	tat_name_set = {tat_name_set{:}};
+        tat_name_set = {tat_name_set{:}};
     end
 end
 
-if length(arr_flight_set) > 1
+if length(arr_flight_set) >= 1
     arr_name_set = [arr_flight_set.name];
     if length(arr_name_set) == 1
-    	arr_name_set = {arr_name_set{:}};
+        arr_name_set = {arr_name_set{:}};
     end
 end
 
-if length(dep_flight_set) > 1
+if length(dep_flight_set) >= 1
     dep_name_set = [dep_flight_set.name];
     if length(dep_name_set) == 1
-    	dep_name_set = {dep_name_set{:}};
+        dep_name_set = {dep_name_set{:}};
     end
 end
 
-GateQ = optimconstr(tat_name_set,4);
+GateQ = optimconstr(tat_name_set,2);
 for f = 1:length(tat_flight_set)
     i = tat_flight_set(f).name;
     ia = i + "_Arr";
@@ -1053,59 +1067,105 @@ for f = 1:length(tat_flight_set)
     gen = arr_flight_set(fa).ArrNodes(end);
     gex = dep_flight_set(fd).DepNodes(1);
     g0  = strcat(tat_flight_set(f).Gate,'c',string(0));
-    gcg = strcat(tat_flight_set(f).Gate,'c',string(gateCapacity));
+    gcg = strcat(tat_flight_set(f).Gate,'c',string(1));
     GateQ(i,1) = t_iu(ia,gen) == t_iu(i,g0); % arrival set entry = tat set entry
     GateQ(i,2) = t_iu(id,gex) == t_iu(i,gcg); % departure set exit = tat set exit
 end
+
+
 end
 
-function Qorder = QorderConstr(tat_flight_set, t_iu, gateCapacity)
 
-if length(tat_flight_set) > 1
+function [GateQ_ygenij, GateQ_ygexij] = GateQconstr2(tat_flight_set, arr_flight_set, dep_flight_set, y_uij)
+
+if length(tat_flight_set) >= 1
     tat_name_set = [tat_flight_set.name];
     if length(tat_name_set) == 1
-    	tat_name_set = {tat_name_set{:}};
+        tat_name_set = {tat_name_set{:}};
     end
 end
 
-Qorder = optimconstr(tat_name_set, gateCapacity);
-
-for f = 1:length(tat_flight_set)
-    i = tat_flight_set(f).name;
-    for k = 0:(gateCapacity-1)
-        gk = strcat(tat_flight_set(f).Gate,'c',string(k));
-        gk1 = strcat(tat_flight_set(f).Gate,'c',string(k+1));
-        Qorder(i,k+1) = t_iu(i,gk1) >= t_iu(i,gk);
+if length(arr_flight_set) >= 1
+    arr_name_set = [arr_flight_set.name];
+    if length(arr_name_set) == 1
+        arr_name_set = {arr_name_set{:}};
     end
 end
+
+if length(dep_flight_set) >= 1
+    dep_name_set = [dep_flight_set.name];
+    if length(dep_name_set) == 1
+        dep_name_set = {dep_name_set{:}};
+    end
 end
 
-function FCFS = FCFSconstr(tat_flight_set, t_iu, y_uij, gateCapacity)
+GateQ_ygenij = optimconstr(tat_name_set, tat_name_set);
+GateQ_ygexij = optimconstr(tat_name_set, tat_name_set);
+
+for f1 = 1:length(tat_flight_set)
+    i = tat_flight_set(f1).name;
+    ia = i + "_Arr";
+    id = i + "_Dep";
+    f1a = arr_name_set == ia;
+    f1d = dep_name_set == id;
+    geni = arr_flight_set(f1a).ArrNodes(end);
+    gexi = dep_flight_set(f1d).DepNodes(1);
+    g0i  = strcat(tat_flight_set(f1).Gate,'c',string(0));
+    gcgi = strcat(tat_flight_set(f1).Gate,'c',string(1));
+    for f2 = 1:length(tat_flight_set)
+        j = tat_flight_set(f2).name;
+        ja = j + "_Arr";
+        jd = j + "_Dep";
+        f2a = arr_name_set == ja;
+        f2d = dep_name_set == jd;
+        genj = arr_flight_set(f2a).ArrNodes(end);
+        if all(geni{1} == genj{1}) && (f1~=f2)
+            g = geni; g0 = g0i;
+            GateQ_ygenij(i,j) = y_uij(g,ia,ja) == y_uij(g0,i,j);
+            g = gexi; gcg = gcgi;
+            GateQ_ygexij(i,j) = y_uij(g,id,jd) == y_uij(gcg,i,j);
+        end
+
+    end
+
+end
+end
+
+function [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij)
 
 global M
 
-if length(tat_flight_set) > 1
+if length(tat_flight_set) >= 1
     tat_name_set = [tat_flight_set.name];
     if length(tat_name_set) == 1
-    	tat_name_set = {tat_name_set{:}};
+        tat_name_set = {tat_name_set{:}};
     end
 end
 
+y1 = optimvar("y1", tat_name_set, tat_name_set, 'LowerBound',0,'UpperBound',1, 'Type','integer');
+GateCapacity1 = optimconstr(tat_name_set, tat_name_set);
+GateCapacity2 = optimconstr(tat_name_set, tat_name_set, tat_name_set, tat_name_set);
 
-FCFS = optimconstr(gateCapacity+1, tat_name_set,tat_name_set);
 for f1 = 1:length(tat_flight_set)
-    i = tat_flight_set(f1).name;
+    i  = tat_flight_set(f1).name;
     g1 = tat_flight_set(f1).Gate;
     for f2 = 1:length(tat_flight_set)
         j = tat_flight_set(f2).name;
         g2 = tat_flight_set(f2).Gate;
-        
-        if (f1~=f2) && ~isempty(g1==g2)
-            g = g1;
-            for k = 0:(gateCapacity-1)
-                gk = strcat(tat_flight_set(f1).Gate,'c',string(k));
-                gk1 = strcat(tat_flight_set(f1).Gate,'c',string(k+1));
-                FCFS(k+1,i,j) = t_iu(j,gk) >= t_iu(i,gk1) - (1-y_uij(g,i,j))*M;
+        for f3 = f2:length(tat_flight_set)
+            k = tat_flight_set(f3).name;
+            g3 = tat_flight_set(f3).Gate;
+            for f4 = f3:length(tat_flight_set)
+                l = tat_flight_set(f4).name;
+                g4 = tat_flight_set(f4).Gate;
+
+                if ((f1~=f2) && (f2~=f3) && (f3~=f4) && (f1~=f3) && (f2~=f4) && (f1~=f4)) && (all(g1==g2) && all(g2==g3) && all(g3==g4))
+                    g = g1;
+                    GateCapacity1(i,j) = t_iu(i,g+"c0") >= t_iu(j,g+"c1") - (1-y_uij(g+"c0",j,i))*M - (1-y1(i,j))*M;
+                    GateCapacity1(i,k) = t_iu(i,g+"c0") >= t_iu(k,g+"c1") - (1-y_uij(g+"c0",k,i))*M - (1-y1(i,k))*M;
+                    GateCapacity1(i,l) = t_iu(i,g+"c0") >= t_iu(l,g+"c1") - (1-y_uij(g+"c0",l,i))*M - (1-y1(i,l))*M;
+                    GateCapacity2(i,j,k,l) = y1(i,j)+y1(i,k)+y1(i,l)>=1;
+                end
             end
         end
     end

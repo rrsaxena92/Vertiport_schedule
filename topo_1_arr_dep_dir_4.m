@@ -1,6 +1,4 @@
 Nodes.gates = {'G1','G2','G3','G4'};
-%Nodes.gatesEn = cellfun(@(x) [x '_en'],Nodes.gates,'UniformOutput',false);
-%Nodes.gatesEx = cellfun(@(x) [x '_ex'],Nodes.gates,'UniformOutput',false);
 Nodes.taxi  = {'a','b'};
 Nodes.TLOFen = {'c'};
 Nodes.TLOFex = {'c'};
@@ -8,16 +6,16 @@ Nodes.TLOF  = {'R2'};
 Nodes.OVF   = {'X'};
 Nodes.dir   = {'N','E','W','S'};
 
-gateCapacity = 3;
+capacityNodes = 3;
 
-new_nodes = cell(1, length(Nodes.gates)*(gateCapacity));  % Pre-allocate new node cell array
+new_nodes = cell(1, length(Nodes.gates)*(capacityNodes));  % Pre-allocate new node cell array
 count = 0;  % Initialize count
 
 % Loop over gates
 for g = 1:length(Nodes.gates)
     gate = Nodes.gates{g};
     % Loop over gate capacity
-    for c = 0:gateCapacity
+    for c = 0:capacityNodes
         count = count + 1;  % Increment count
         new_nodes{count} = sprintf('%s%c%d', gate, 'c', c);  % Create new node name and store in cell array
     end
