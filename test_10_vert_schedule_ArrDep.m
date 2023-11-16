@@ -2,6 +2,8 @@ clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
+saveFile = 1;
+num_flight = 20;
 
 if saveFile
     fprintf("File is going to be saved \n");
@@ -54,6 +56,7 @@ TAT = [90, 120, 150, 210, 300];
 global Edges Nodes  flight_class operator descentDelay Qdelay% flight_path_nodes flight_path_edges
 
 topo_1_arr_dep_dir_3
+gateCapacity = 1;
 
 Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 0;
@@ -123,7 +126,7 @@ for f = 1:num_flight
         flight.TAT = TAT(flight.class);
 
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
-        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
+        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable')';
 
         dep_flight_set = [dep_flight_set, flight];
         flight_set = [flight_set flight];
@@ -189,7 +192,7 @@ for f = 1:num_flight
         flight.DepFix_direction = [];
 
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
-        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
+        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable')';
 
         arr_flight_set = [arr_flight_set flight];
         flight_set = [flight_set flight];
@@ -211,7 +214,7 @@ for f = 1:num_flight
         flight.ArrFix_direction = [];
 
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
-        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
+        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable')';
 
         dep_flight_set = [dep_flight_set, flight];
         flight_set = [flight_set flight];
@@ -240,9 +243,6 @@ for f = 1:num_flight
     else
         fprintf("Invalid set of flight %s number %d", flight.type, f);
     end
-
-
-
 end
 
 
@@ -343,9 +343,9 @@ num_flight_tot = length(flight_set);
 fprintf("Num flights %d (%d), dep %d (%d) arr %d (%d) tat %d \n", num_flight_tot,num_flight, length(dep_flight_set), (length(dep_flight_set)-length(tat_flight_set)) , length(arr_flight_set),(length(arr_flight_set)-length(tat_flight_set)), length(tat_flight_set))
 %% Parameters
 
-W_r  = 10;  % Weight for time spent on TLOF after landing
+W_ar = 10;  % Weight for time spent on TLOF after landing
 W_qg = 1;  % Weight for time spent on the GATE Q
-W_qr = 10; % Weight for time spent on TLOF before takeoff
+W_dr = 10; % Weight for time spent on TLOF before takeoff
 Wa_c = 7;  % Weight for time spent on fix direction by arrival flight
 Wd_c = 7;  % Weight for time spent on fix direction by departure flight
 W_g  = 2;  % Weight for time spent waiting on gate by departure flight
@@ -398,7 +398,7 @@ for f = 1:length(arr_flight_set)
     Landtime(i) = t_iu(i,ui1) - t_iu(i,r);
 end
 
-WLand = W_r*sum(Landtime);
+WLand = W_ar*sum(Landtime);
 
 % Turn Around
 gateQ = optimexpr(1,tat_name_set);
@@ -443,7 +443,10 @@ for f = 1:length(dep_flight_set)
     takeOfftime(i) = t_iu(i,r) - t_iu(i,uiki);
 end
 
-WtakeOff = W_qr*sum(takeOfftime);
+WtakeOff = W_dr*sum(takeOfftime);
+
+
+
 climbTime = optimexpr(1,dep_name_set);
 
 for f = 1:length(dep_flight_set)
@@ -937,7 +940,7 @@ end
 
 function TLOFenterDep = TLOFenterDepConstr(flight_set, t_iu)
 
-if length(flight_set) > 1
+if length(flight_set) >= 1
     flight_name_set = [flight_set.name];
     if length(flight_name_set) == 1
         flight_name_set = {flight_name_set{:}};
@@ -985,7 +988,7 @@ end
 function TLOFenter2Dep = TLOFenter2DepConstr(flight_set, t_iu, y_uij)
 
 global M
-if length(flight_set) > 1
+if length(flight_set) >= 1
     flight_name_set = [flight_set.name];
     if length(flight_name_set) == 1
         flight_name_set = {flight_name_set{:}};
