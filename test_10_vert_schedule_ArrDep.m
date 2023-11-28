@@ -2,8 +2,6 @@ clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
-saveFile = 1;
-num_flight = 20;
 
 if saveFile
     fprintf("File is going to be saved \n");
@@ -24,7 +22,7 @@ edge_length_before_TLOF = 3*d5; %From gate to TLOF
 edge_taxi_speed = 6;
 
 
-vertical_climb_edge_length_above_TLOF=5*d5; %From TLOF pad to point X
+vertical_climb_edge_length_above_TLOF = 5*d5; %From TLOF pad to point X
 
 vertical_climb_speed = 8; % 20km/hr is 6m/s which is speed on taxiways and vertical climb speed
 
@@ -55,18 +53,17 @@ TAT = [90, 120, 150, 210, 300];
 
 global Edges Nodes  flight_class operator descentDelay Qdelay% flight_path_nodes flight_path_edges
 
-topo_1_arr_dep_dir_3
+topo_1_arr_dep_dir_4
 gateCapacity = 1;
 
 Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 0;
 Qdelay = 0;
 extraDelayArr = 2.5; %12
+diffDirtimeSep = 7; % According to Small t_XR + tot = 6.375s
 %% FLight set
 
-flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
 operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
-flight_set_type = ["arr", "dep","tat"];
 
 flight_set_struct = struct('name',[],'type', [],'ArrReqTime',[],'DepReqTime',[],'ArrNodes',[],'ArrEdges', ...
     [],'ArrTLOF',[],'ArrFix_direction',[],'DepNodes',[],'DepEdges',[],'DepTLOF',[],'DepFix_direction', ...
@@ -84,7 +81,6 @@ tat_flight_set = [];
 for f = 1:num_flight
     q = randi(length(flight_class));
     o = randi(length(operator));
-
 
     if num_flight > 1
         flight.name = string(flight_class(q)) + '-' + string(operator(o))+'-'+f;
@@ -201,7 +197,6 @@ for f = 1:num_flight
         n = flight_path_nodes_dep{x};
         flight.gateV = [];
 
-
         flight.DepNodes = n;
         flight.DepEdges = flight_path_edges_dep{x};
 
@@ -245,7 +240,6 @@ for f = 1:num_flight
     end
 end
 
-
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
     flight_name_set = {flight_name_set{:}};
@@ -284,59 +278,65 @@ if ~isempty(arr_flight_set)
         for f1 = 1:length(arr_flight_set)
             for f2 = 1:length(arr_flight_set)
                 if f1 ~= f2
-                    if strcmp(arr_flight_set(f1).ArrFix_direction, arr_flight_set(f2).ArrFix_direction)
-                        % Calculate time difference between reqTime values
-                        time_diff = abs(arr_flight_set(f1).ArrReqTime - arr_flight_set(f2).ArrReqTime);
+                    % Calculate time difference between reqTime values
+                    time_diff = abs(arr_flight_set(f1).ArrReqTime - arr_flight_set(f2).ArrReqTime);
+                    if strcmp(arr_flight_set(f1).ArrFix_direction, arr_flight_set(f2).ArrFix_direction) % On same direction
                         req_time_diff = D_sep_fix(arr_flight_set(f1).class, arr_flight_set(f2).class) / SlantClimbSpeed + extraDelayArr;
-                        if 0 < round(req_time_diff - time_diff,2)
-                            % Add time difference to the flight with higher reqTime value
-                            if arr_flight_set(f2).ArrReqTime  > arr_flight_set(f1).ArrReqTime
-                                arr_flight_set(f2).ArrReqTime = arr_flight_set(f2).ArrReqTime + (req_time_diff - time_diff);
-                                i = find(flight_name_set == arr_flight_set(f2).name);
-                                flight_set(i).ArrReqTime = arr_flight_set(f2).ArrReqTime;
-                                % Changing the ArrReqTime and DepReqTime in
-                                % all the sets
-                                if arr_flight_set(f2).type == "tat"
-                                    name = erase(arr_flight_set(f2).name, "_Arr");
-                                    i = find(flight_name_set == name);
-                                    flight_set(i).ArrReqTime = arr_flight_set(f2).ArrReqTime;
-                                    flight_set(i).DepReqTime = flight_set(i).ArrReqTime + calcDepReqTime(arr_flight_set(f2));
-                                    j = find(dep_name_set == (name+"_Dep"));
-                                    dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
-                                    dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
-                                    k = find(flight_name_set == (name+"_Dep"));
-                                    flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
-                                    flight_set(k).DepReqTime = flight_set(i).DepReqTime;
-                                    l = find(arr_flight_set(f2).name == flight_name_set);
-                                    flight_set(l).DepReqTime = flight_set(i).DepReqTime;
-                                end
-                            else
-                                arr_flight_set(f1).ArrReqTime = arr_flight_set(f1).ArrReqTime + (req_time_diff - time_diff);
-                                i = find(flight_name_set == arr_flight_set(f1).name);
-                                flight_set(i).ArrReqTime = arr_flight_set(f1).ArrReqTime;
-                                if arr_flight_set(f1).type == "tat"
-                                    name = erase(arr_flight_set(f1).name, "_Arr");
-                                    i = find(flight_name_set == name);
-                                    flight_set(i).ArrReqTime = arr_flight_set(f1).ArrReqTime;
-                                    flight_set(i).DepReqTime = flight_set(i).ArrReqTime + calcDepReqTime(arr_flight_set(f1));
-                                    j = find(dep_name_set == (name+"_Dep"));
-                                    dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
-                                    dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
-                                    k = find(flight_name_set == (name+"_Dep"));
-                                    flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
-                                    flight_set(k).DepReqTime = flight_set(i).DepReqTime;
-                                    l = find(arr_flight_set(f2).name == flight_name_set);
-                                    flight_set(l).DepReqTime = flight_set(i).DepReqTime;
-                                end
-                            end
-                            all_time_diff_met = false;
+                    else % On different direction
+                        if diffDirtimeSep == 0 
+                            continue % No time separation required on differernt directions
                         end
+                        req_time_diff = diffDirtimeSep;
+                    end
+                    if 0 < round(req_time_diff - time_diff,2)
+                        % Add time difference to the flight with higher reqTime value
+                        if arr_flight_set(f2).ArrReqTime  > arr_flight_set(f1).ArrReqTime
+                            arr_flight_set(f2).ArrReqTime = arr_flight_set(f2).ArrReqTime + (req_time_diff - time_diff);
+                            i = find(flight_name_set == arr_flight_set(f2).name);
+                            flight_set(i).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                            % Changing the ArrReqTime and DepReqTime in
+                            % all the sets
+                            if arr_flight_set(f2).type == "tat"
+                                name = erase(arr_flight_set(f2).name, "_Arr");
+                                i = find(flight_name_set == name);
+                                flight_set(i).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                flight_set(i).DepReqTime = flight_set(i).ArrReqTime + calcDepReqTime(arr_flight_set(f2));
+                                j = find(dep_name_set == (name+"_Dep"));
+                                dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
+                                dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
+                                k = find(flight_name_set == (name+"_Dep"));
+                                flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                flight_set(k).DepReqTime = flight_set(i).DepReqTime;
+                                l = find(arr_flight_set(f2).name == flight_name_set);
+                                flight_set(l).DepReqTime = flight_set(i).DepReqTime;
+                            end
+                        else
+                            arr_flight_set(f1).ArrReqTime = arr_flight_set(f1).ArrReqTime + (req_time_diff - time_diff);
+                            i = find(flight_name_set == arr_flight_set(f1).name);
+                            flight_set(i).ArrReqTime = arr_flight_set(f1).ArrReqTime;
+                            if arr_flight_set(f1).type == "tat"
+                                name = erase(arr_flight_set(f1).name, "_Arr");
+                                i = find(flight_name_set == name);
+                                flight_set(i).ArrReqTime = arr_flight_set(f1).ArrReqTime;
+                                flight_set(i).DepReqTime = flight_set(i).ArrReqTime + calcDepReqTime(arr_flight_set(f1));
+                                j = find(dep_name_set == (name+"_Dep"));
+                                dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
+                                dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
+                                k = find(flight_name_set == (name+"_Dep"));
+                                flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                flight_set(k).DepReqTime = flight_set(i).DepReqTime;
+                                l = find(arr_flight_set(f2).name == flight_name_set);
+                                flight_set(l).DepReqTime = flight_set(i).DepReqTime;
+                            end
+                        end
+                        all_time_diff_met = false;
                     end
                 end
             end
         end
     end
 end
+
 
 num_flight_tot = length(flight_set);
 
@@ -434,7 +434,6 @@ end
 
 WtaxiTimeDep = Wd_t*sum(taxiTimeDep);
 
-
 takeOfftime = optimexpr(1,dep_name_set);
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
@@ -444,8 +443,6 @@ for f = 1:length(dep_flight_set)
 end
 
 WtakeOff = W_dr*sum(takeOfftime);
-
-
 
 climbTime = optimexpr(1,dep_name_set);
 
@@ -457,8 +454,6 @@ for f = 1:length(dep_flight_set)
 end
 
 WClimb = Wd_c*sum(climbTime);
-
-
 
 vertiOpt.Objective = (Wapproach + WLand + WtaxiTimeArr + Wtaxiout + Wtime + WtaxiTimeDep + WtakeOff + WClimb)/10;
 
@@ -500,8 +495,6 @@ for f = 1:length(tat_flight_set)
     vertiOpt.Constraints.TAT(i) = t_iu(i,gex) - t_iu(i,gen) >= tat_flight_set(f).TAT;
 end
 fprintf(" 1.1 ");
-
-
 
 % Deifinition of y^u_ij C9-C16
 
@@ -546,7 +539,6 @@ if ~isempty(arr_flight_set)
 
     fprintf(" 7 ");
 
-
     % land approach Arr C26.2
 
     vertiOpt.Constraints.TLOFClearArr = TLOFClearArrConstr(arr_flight_set, y_uij, t_iu);
@@ -588,10 +580,8 @@ if ~isempty(tat_flight_set)
 
     [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij);
 
-
     fprintf(" 13.3 ");
 end
-
 
 fprintf(" \n ");
 endTime = datetime;
@@ -602,7 +592,6 @@ Formulationtime = endTime - startTime;
 x0.t_iu  = zeros(length(flight_set), length(Nodes.all));
 x0.y_uij = zeros(length(Nodes.all), length(flight_set), length(flight_set));
 x0.y1 = zeros(length(tat_flight_set), length(tat_flight_set));
-
 
 startTime = datetime; fprintf("Start time %s \n", startTime);
 vertiOpt_sol = solve(vertiOpt, x0);
@@ -721,8 +710,6 @@ end
 
 TAT = flight.TAT;
 
-
-
 depTime = fixTime + OVFtime + TOT + taxiTime + TAT + Qdelay;
 
 end
@@ -755,14 +742,12 @@ for f = 1:length(flight_set)
 end
 end
 
-
 function ytime = YtimeConstr(Nodes, flight_set, t_iu, y_uij, M)
 flight_name_set = [flight_set.name];
 if length(flight_name_set) == 1
     flight_name_set = {flight_name_set{:}};
 end
 ytime = optimconstr(Nodes, flight_name_set, flight_name_set);
-
 
 % for n = 1:length(Nodes)
 %     u = Nodes(n);
@@ -1074,8 +1059,6 @@ for f = 1:length(tat_flight_set)
     GateQ(i,1) = t_iu(ia,gen) == t_iu(i,g0); % arrival set entry = tat set entry
     GateQ(i,2) = t_iu(id,gex) == t_iu(i,gcg); % departure set exit = tat set exit
 end
-
-
 end
 
 
@@ -1128,11 +1111,10 @@ for f1 = 1:length(tat_flight_set)
             g = gexi; gcg = gcgi;
             GateQ_ygexij(i,j) = y_uij(g,id,jd) == y_uij(gcg,i,j);
         end
-
     end
+end
+end
 
-end
-end
 
 function [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij)
 

@@ -58,6 +58,7 @@ cooling_time = [2 4 6 8 10];
 
 
 global Edges Nodes flight_path_nodes flight_path_edges flight_class operator descentDelay
+topo_1_arr_dir_4
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 20;

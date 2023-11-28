@@ -6,7 +6,7 @@ Nodes.TLOF  = {'R2'};
 Nodes.OVF   = {'X'};
 Nodes.dir   = {'N','E','W','S'};
 
-capacityNodes = 3;
+capacityNodes = 1;
 
 new_nodes = cell(1, length(Nodes.gates)*(capacityNodes));  % Pre-allocate new node cell array
 count = 0;  % Initialize count
