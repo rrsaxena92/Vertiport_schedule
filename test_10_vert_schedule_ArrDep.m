@@ -2,6 +2,8 @@ clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
+saveFile = 1;
+num_flight = 20;
 
 if saveFile
     fprintf("File is going to be saved \n");
@@ -153,7 +155,7 @@ for f = 1:num_flight
         flight.TAT = TAT(flight.class);
 
         flight.nodes = [[flight.ArrNodes],[flight.gateV] ,[flight.DepNodes]];
-        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable');
+        flight.edges = union(flight.ArrEdges, flight.DepEdges, 'stable')';
 
         arr_flight_set = [arr_flight_set flight];
         flight_set = [flight_set flight];
@@ -795,7 +797,7 @@ end
 Overtake = optimconstr(string(setdiff(Edges.all, [Edges.OVF,Edges.TLOF])), flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         i = flight_set(f1).name;
         j = flight_set(f2).name;
         if f1 ~= f2
@@ -821,7 +823,7 @@ end
 Collision = optimconstr(Edges, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         i = flight_set(f1).name;
         j = flight_set(f2).name;
         if f1 ~= f2
@@ -853,15 +855,22 @@ for f1 = 1:length(flight_set)
     for f2 = 1:length(flight_set)
         j = flight_set(f2).name;
         if f1 ~= f2
-            Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
             commonEdges =  intersect(intersect(flight_set(f1).edges,flight_set(f2).edges,"stable"), Edges,"stable");
-            for e1 = 1:length(commonEdges)
-                e = commonEdges{e1};
-                e_ = split(e,'-');
-                u = e_{1}; v = e_{2};
-                D_uv = get_edge_length(commonEdges{e1});
-                taxiSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-y_uij(u,i,j))*M;
+            if isempty(commonEdges)
+                continue
             end
+
+            edge_lengths = arrayfun(@get_edge_length, commonEdges); % Compute edge lengths
+
+            edge_splits = cellfun(@(e) strsplit(e, '-'), commonEdges, 'UniformOutput', false);
+            edges_split = vertcat(edge_splits{:}); % Extract nodes 'u' and 'v'
+
+            u = edges_split(:, 1)'; % Nodes 'u'
+            v = edges_split(:, 2)'; % Nodes 'v'
+
+            Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
+            taxiSeparation1(commonEdges,i,j) = t_iu(j, u) >= t_iu(i, u) + (Dsep_ij./ edge_lengths) .* (t_iu(i, v) - t_iu(i, u)) - (1 - y_uij(u, i, j)') .* M;
+
         end
     end
 end
