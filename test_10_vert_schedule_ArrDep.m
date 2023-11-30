@@ -62,7 +62,7 @@ Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length
 descentDelay = 0;
 Qdelay = 0;
 extraDelayArr = 2.5; %12
-diffDirtimeSep = 7; % According to Small t_XR + tot = 6.375s
+diffDirtimeSep = 6.6; % According to Small t_XR + tot = 6.375s
 %% FLight set
 
 operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
@@ -1001,7 +1001,8 @@ for f1 = 1:length(flight_set)
         if (f1 ~= f2) && (r1 == r2)
             r = r1;
             ca = flight_set(f1).DepNodes(end-1); % According to i flight's plan..,Last node, LaunchpadNode, Climb_a, Climb_b
-            TLOFenter2Dep(i,j) = t_iu(j,r) >= t_iu(i,ca) - (1-y_uij(r,i,j))*M;
+            en = flight_set(f1).DepNodes(end-3); % TLOF pad entrance node
+            TLOFenter2Dep(i,j) = t_iu(j,en) >= t_iu(i,ca) - (1-y_uij(r,i,j))*M;
         end
     end
 end
