@@ -65,7 +65,9 @@ extraDelayArr = 2.5; %12
 diffDirtimeSep = 6.6; % According to Small t_XR + tot = 6.375s
 %% FLight set
 
+flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
 operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
+flight_set_type = ["arr", "dep","tat"];
 
 flight_set_struct = struct('name',[],'type', [],'ArrReqTime',[],'DepReqTime',[],'ArrNodes',[],'ArrEdges', ...
     [],'ArrTLOF',[],'ArrFix_direction',[],'DepNodes',[],'DepEdges',[],'DepTLOF',[],'DepFix_direction', ...
