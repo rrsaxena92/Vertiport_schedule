@@ -757,13 +757,12 @@ ytime = optimconstr(Nodes, flight_name_set, flight_name_set);
 %     u = Nodes(n);
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
-
-        % common_node = any(ismember(flight_set(f1).nodes,u)) & any(ismember(flight_set(f2).nodes,u));
         if (f1 ~= f2)
             common_nodes = intersect(flight_set(f1).nodes, flight_set(f2).nodes);
             ytime(common_nodes,i,j) = t_iu(j,common_nodes) >= t_iu(i,common_nodes) - (1-y_uij(common_nodes,i,j))'*M;
+            ytime(common_nodes,j,i) = t_iu(i,common_nodes) >= t_iu(j,common_nodes) - (1-y_uij(common_nodes,j,i))'*M;
         end
     end
 end
@@ -802,8 +801,11 @@ for f1 = 1:length(flight_set)
     for f2 = (f1+1):length(flight_set)
         i = flight_set(f1).name;
         j = flight_set(f2).name;
-        if f1 ~= f2
+        if (f1 ~= f2)
             commonEdges =  setdiff(intersect(flight_set(f1).edges,flight_set(f2).edges,"stable"), [Edges.TLOF, Edges.OVF]);
+            if ~isempty(commonEdges)
+                continue
+            end
             edges = commonEdges(:);
             edges_split = cellfun(@(e) split(e, '-'), edges, 'UniformOutput', false);
             u = cellfun(@(e) e{1}, edges_split, 'UniformOutput', false);
@@ -824,18 +826,43 @@ if length(flight_name_set) == 1
 end
 Collision = optimconstr(Edges, flight_name_set, flight_name_set);
 
-for f1 = 1:length(flight_set)
-    for f2 = (f1+1):length(flight_set)
-        i = flight_set(f1).name;
-        j = flight_set(f2).name;
-        if f1 ~= f2
-            for e1 = 1:length(Edges)
-                e = Edges{e1};
-                e_ = split(e,'-');
-                u = e_{1}; v = e_{2};
-                er = [v  '-'  u];
-                commonEdge = any(ismember(Edges{e1},flight_set(f1).edges) & ismember(flight_set(f2).edges,er));
+% Initialize arrays for edges and reverse edges
+edges2 = [];
+ReverseEdges = [];
+
+% Initialize containers for unique edges and reverse edges
+UniqueEdges = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+
+% Split edges into 'u-v' pairs and separate reverse edges
+for i = 1:length(Edges)
+    edge = Edges(i);
+    uv = split(edge, '-');
+    reverse_edge = join([uv(2), uv(1)], '-');
+    
+    % Check if the edge or its reverse edge is already added
+    if ~isKey(UniqueEdges, edge) && ~isKey(UniqueEdges, reverse_edge)
+        % Add edges and reverse edges to their respective arrays
+        edges2 = [edges2; edge];
+        ReverseEdges = [ReverseEdges; reverse_edge];
+        
+        % Mark edges and reverse edges as added
+        UniqueEdges(edge) = true;
+        UniqueEdges(reverse_edge) = true;
+    end
+end
+
+for e1 = 1:length(edges2)
+    e = string(edges2{e1});
+    er = string(ReverseEdges{e1});
+    for f1 = 1:length(flight_set)
+        for f2 = (f1+1):length(flight_set)
+            i = flight_set(f1).name;
+            j = flight_set(f2).name;
+            if f1 ~= f2
+                commonEdge = any(ismember(e,flight_set(f1).edges) & ismember(flight_set(f2).edges,er) | ismember(er,flight_set(f1).edges) & ismember(flight_set(f2).edges,e));
                 if commonEdge
+                    uv = split(e, '-');
+                    u = uv{1}; v = uv{2};
                     Collision(e,i,j) = y_uij(u,i,j) - y_uij(v,i,j) == 0;
                 end
             end
@@ -872,6 +899,7 @@ for f1 = 1:length(flight_set)
 
             Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
             taxiSeparation1(commonEdges,i,j) = t_iu(j, u) >= t_iu(i, u) + (Dsep_ij./ edge_lengths) .* (t_iu(i, v) - t_iu(i, u)) - (1 - y_uij(u, i, j)') .* M;
+            taxiSeparation1(commonEdges,j,i) = t_iu(i, u) >= t_iu(j, u) + (Dsep_ij./ edge_lengths) .* (t_iu(j, v) - t_iu(j, u)) - (1 - y_uij(u, j, i)') .* M;
 
         end
     end
@@ -888,7 +916,7 @@ fixSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
         if f1 ~= f2
             commonEdges =  intersect(intersect(flight_set(f1).edges,flight_set(f2).edges,"stable"), Edges,"stable");
