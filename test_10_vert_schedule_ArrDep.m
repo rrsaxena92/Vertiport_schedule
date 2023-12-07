@@ -761,6 +761,9 @@ for f1 = 1:length(flight_set)
         j = flight_set(f2).name;
         if (f1 ~= f2)
             common_nodes = intersect(flight_set(f1).nodes, flight_set(f2).nodes);
+            if isempty(common_nodes)
+                continue
+            end
             ytime(common_nodes,i,j) = t_iu(j,common_nodes) >= t_iu(i,common_nodes) - (1-y_uij(common_nodes,i,j))'*M;
             ytime(common_nodes,j,i) = t_iu(i,common_nodes) >= t_iu(j,common_nodes) - (1-y_uij(common_nodes,j,i))'*M;
         end
@@ -882,6 +885,7 @@ taxiSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
     for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
         if f1 ~= f2
             commonEdges =  intersect(intersect(flight_set(f1).edges,flight_set(f2).edges,"stable"), Edges,"stable");
@@ -899,6 +903,7 @@ for f1 = 1:length(flight_set)
 
             Dsep_ij = D_sep_taxi(flight_set(f1).class, flight_set(f2).class);
             taxiSeparation1(commonEdges,i,j) = t_iu(j, u) >= t_iu(i, u) + (Dsep_ij./ edge_lengths) .* (t_iu(i, v) - t_iu(i, u)) - (1 - y_uij(u, i, j)') .* M;
+            Dsep_ij = D_sep_taxi(flight_set(f2).class, flight_set(f1).class);
             taxiSeparation1(commonEdges,j,i) = t_iu(i, u) >= t_iu(j, u) + (Dsep_ij./ edge_lengths) .* (t_iu(j, v) - t_iu(j, u)) - (1 - y_uij(u, j, i)') .* M;
 
         end
