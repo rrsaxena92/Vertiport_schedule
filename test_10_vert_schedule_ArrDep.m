@@ -582,7 +582,7 @@ if ~isempty(tat_flight_set)
 
     fprintf(" 13.2 ");
 
-    [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij);
+    [vertiOpt.Constraints.GateCapacity1, vertiOpt.Constraints.GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij);
 
     fprintf(" 13.3 ");
 end
