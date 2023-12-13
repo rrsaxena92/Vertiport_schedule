@@ -50,7 +50,7 @@ FDT=(inclination_climb_edge_length/m1);
 FT=[(FDT/5) (2*FDT/5) (3*FDT/5) (4*FDT/5) (FDT);2*FDT/5 2*FDT/5 3*FDT/5 4*FDT/5 FDT;3*FDT/5 3*FDT/5 3*FDT/5 4*FDT/5 FDT;4*FDT/5 4*FDT/5 4*FDT/5 4*FDT/5 FDT;FDT FDT FDT FDT FDT];
 F=Twake.*FT;
 
-TOT = [2 4 6 8 10];
+TOT = [2 2 4 4 6];
 TAT = [90, 120, 150, 210, 300];
 
 global Edges Nodes  flight_class operator descentDelay Qdelay% flight_path_nodes flight_path_edges
@@ -841,7 +841,6 @@ for i = 1:length(Edges)
     edge = Edges(i);
     uv = split(edge, '-');
     reverse_edge = join([uv(2), uv(1)], '-');
-    
     % Check if the edge or its reverse edge is already added
     if ~isKey(UniqueEdges, edge) && ~isKey(UniqueEdges, reverse_edge)
         % Add edges and reverse edges to their respective arrays
@@ -884,7 +883,6 @@ taxiSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
     for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
         if f1 ~= f2
@@ -921,7 +919,7 @@ fixSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = (f1+1):length(flight_set)
+    for f2 = 1:length(flight_set)
         j = flight_set(f2).name;
         if f1 ~= f2
             commonEdges =  intersect(intersect(flight_set(f1).edges,flight_set(f2).edges,"stable"), Edges,"stable");
@@ -1161,40 +1159,44 @@ end
 end
 
 
-function [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij)
+function [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set, t_iu, y_uij)
 
 global M
 
+% Extract flight names and gates
 if length(tat_flight_set) >= 1
     tat_name_set = [tat_flight_set.name];
     if length(tat_name_set) == 1
         tat_name_set = {tat_name_set{:}};
     end
 end
+flight_gates = {tat_flight_set.Gate};
+gate_set = unique(flight_gates);
 
-y1 = optimvar("y1", tat_name_set, tat_name_set, 'LowerBound',0,'UpperBound',1, 'Type','integer');
+% Initialize optimconstr variables
+y1 = optimvar("y1", tat_name_set, tat_name_set, 'LowerBound', 0, 'UpperBound', 1, 'Type', 'integer');
 GateCapacity1 = optimconstr(tat_name_set, tat_name_set);
 GateCapacity2 = optimconstr(tat_name_set, tat_name_set, tat_name_set, tat_name_set);
 
-for f1 = 1:length(tat_flight_set)
-    i  = tat_flight_set(f1).name;
-    g1 = tat_flight_set(f1).Gate;
-    for f2 = 1:length(tat_flight_set)
-        j = tat_flight_set(f2).name;
-        g2 = tat_flight_set(f2).Gate;
-        for f3 = f2:length(tat_flight_set)
-            k = tat_flight_set(f3).name;
-            g3 = tat_flight_set(f3).Gate;
-            for f4 = f3:length(tat_flight_set)
-                l = tat_flight_set(f4).name;
-                g4 = tat_flight_set(f4).Gate;
-
-                if ((f1~=f2) && (f2~=f3) && (f3~=f4) && (f1~=f3) && (f2~=f4) && (f1~=f4)) && (all(g1==g2) && all(g2==g3) && all(g3==g4))
-                    g = g1;
-                    GateCapacity1(i,j) = t_iu(i,g+"c0") >= t_iu(j,g+"c1") - (1-y_uij(g+"c0",j,i))*M - (1-y1(i,j))*M;
-                    GateCapacity1(i,k) = t_iu(i,g+"c0") >= t_iu(k,g+"c1") - (1-y_uij(g+"c0",k,i))*M - (1-y1(i,k))*M;
-                    GateCapacity1(i,l) = t_iu(i,g+"c0") >= t_iu(l,g+"c1") - (1-y_uij(g+"c0",l,i))*M - (1-y1(i,l))*M;
-                    GateCapacity2(i,j,k,l) = y1(i,j)+y1(i,k)+y1(i,l)>=1;
+% Loop through gates
+for gate_index = 1:length(gate_set)
+    g = gate_set{gate_index};
+    gate_flights = find(ismember(flight_gates, g));
+    % looping through 4 flights
+    for f1 = gate_flights
+        i = tat_name_set{f1};
+        for f2 = gate_flights
+            j = tat_name_set{f2};
+            for f3 = gate_flights
+                k = tat_name_set{f3};
+                for f4 = gate_flights
+                    l = tat_name_set{f4};
+                    % Conditions to minimize comparisons
+                    if f1 ~= f2 && f2 ~= f3 && f3 ~= f4 && f1 ~= f3 && f2 ~= f4 && f1 ~= f4
+                        jkl = string({j k l});
+                        GateCapacity1(i, jkl) = t_iu(i, g + "c0") >= t_iu(jkl, g + "c1") - (1 - y_uij(g + "c0", jkl, i))' * M - (1 - y1(i, jkl))' * M;
+                        GateCapacity2(i, j, k, l) = y1(i, j) + y1(i, k) + y1(i, l) >= 1;
+                    end
                 end
             end
         end
