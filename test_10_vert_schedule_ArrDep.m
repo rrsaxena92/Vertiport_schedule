@@ -53,7 +53,7 @@ F=Twake.*FT;
 TOT = [2 2 4 4 6];
 TAT = [90, 120, 150, 210, 300];
 
-global Edges Nodes  flight_class operator descentDelay Qdelay% flight_path_nodes flight_path_edges
+global Edges Nodes  flight_class operator descentDelay Qdelay gateCapacity
 
 topo_1_arr_dep_dir_4
 gateCapacity = 1;
@@ -63,6 +63,7 @@ descentDelay = 0;
 Qdelay = 0;
 extraDelayArr = 2.5; %12
 diffDirtimeSep = 6.6; % According to Small t_XR + tot = 6.375s
+gateCapacity = 3;
 %% FLight set
 
 flight_class = {'Small','Medium','Jumbo','Super','Ultra'}; % Should be equal to value inside UAM_class function
@@ -225,7 +226,7 @@ for f = 1:num_flight
         flight.ArrTLOF  = string(n{3});
         flight.ArrFix_direction = string(n{1});
 
-        flight.gateV = arrayfun(@(x) [flight.Gate, 'c',num2str(x)], 0:gateCapacity, 'UniformOutput', false);
+        flight.gateV = arrayfun(@(x) [flight.Gate, 'c',num2str(x)], 0:capacityNodes, 'UniformOutput', false);
 
         flight.DepNodes = [];%flight_path_nodes_dep{x};
         flight.DepEdges = [];%flight_path_edges_dep{x};
@@ -287,7 +288,7 @@ if ~isempty(arr_flight_set)
                     if strcmp(arr_flight_set(f1).ArrFix_direction, arr_flight_set(f2).ArrFix_direction) % On same direction
                         req_time_diff = D_sep_fix(arr_flight_set(f1).class, arr_flight_set(f2).class) / SlantClimbSpeed + extraDelayArr;
                     else % On different direction
-                        if diffDirtimeSep == 0 
+                        if diffDirtimeSep == 0
                             continue % No time separation required on differernt directions
                         end
                         req_time_diff = diffDirtimeSep;
@@ -362,7 +363,7 @@ M = ceil(num_flight/10 + 1)*2000; % Till 10 flights its 2000, till 20 flights it
 inputs.Twake = Twake;
 inputs.Edges = Edges;
 inputs.Nodes = Nodes;
-inputs.gateCap = gateCapacity;
+inputs.gateCap = capacityNodes;
 %% Optimsation problem
 
 vertiOpt = optimproblem;
@@ -410,7 +411,7 @@ gateQ = optimexpr(1,tat_name_set);
 for f = 1:length(tat_flight_set)
     i = tat_flight_set(f).name;
     Gent = tat_flight_set(f).Gate + "c0";
-    Gext = tat_flight_set(f).Gate + "c"+string(gateCapacity);
+    Gext = tat_flight_set(f).Gate + "c"+string(capacityNodes);
     gateQ(i) = t_iu(i,Gext) - t_iu(i,Gent);
 end
 
@@ -495,7 +496,7 @@ vertiOpt.Constraints.TAT = optimconstr(tat_name_set);
 for f = 1:length(tat_flight_set)
     i = tat_flight_set(f).name;
     gen = tat_flight_set(f).Gate + "c0";% tat_flight_set(f).ArrNodes(end);
-    gex = tat_flight_set(f).Gate + "c"+string(gateCapacity); %tat_flight_set(f).DepNodes(1);
+    gex = tat_flight_set(f).Gate + "c"+string(capacityNodes); %tat_flight_set(f).DepNodes(1);
     vertiOpt.Constraints.TAT(i) = t_iu(i,gex) - t_iu(i,gen) >= tat_flight_set(f).TAT;
 end
 fprintf(" 1.1 ");
@@ -1161,7 +1162,7 @@ end
 
 function [GateCapacity1, GateCapacity2] = GateCapacityConstr(tat_flight_set, t_iu, y_uij)
 
-global M
+global M gateCapacity
 
 % Extract flight names and gates
 if length(tat_flight_set) >= 1
@@ -1182,24 +1183,39 @@ GateCapacity2 = optimconstr(tat_name_set, tat_name_set, tat_name_set, tat_name_s
 for gate_index = 1:length(gate_set)
     g = gate_set{gate_index};
     gate_flights = find(ismember(flight_gates, g));
-    % looping through 4 flights
-    for f1 = gate_flights
-        i = tat_name_set{f1};
-        for f2 = gate_flights
-            j = tat_name_set{f2};
-            for f3 = gate_flights
-                k = tat_name_set{f3};
-                for f4 = gate_flights
-                    l = tat_name_set{f4};
-                    % Conditions to minimize comparisons
-                    if f1 ~= f2 && f2 ~= f3 && f3 ~= f4 && f1 ~= f3 && f2 ~= f4 && f1 ~= f4
-                        jkl = string({j k l});
-                        GateCapacity1(i, jkl) = t_iu(i, g + "c0") >= t_iu(jkl, g + "c1") - (1 - y_uij(g + "c0", jkl, i))' * M - (1 - y1(i, jkl))' * M;
-                        GateCapacity2(i, j, k, l) = y1(i, j) + y1(i, k) + y1(i, l) >= 1;
-                    end
+
+    if length(gate_flights) > 3
+        for f1 = 1:length(gate_flights)
+            i = tat_name_set{gate_flights(f1)};
+            for f2 = (f1+1):length(gate_flights)
+                j = tat_name_set{gate_flights(f2)};
+                if f1 ~= f2
+                    GateCapacity1(i, j) = t_iu(i, g + "c0") >= t_iu(j, g + "c1") - (1 - y_uij(g + "c0", j, i))' * M - (1 - y1(i, j))' * M;
+                    GateCapacity1(j, i) = t_iu(j, g + "c0") >= t_iu(i, g + "c1") - (1 - y_uij(g + "c0", i, j))' * M - (1 - y1(j, i))' * M;
                 end
             end
         end
+
+        % Generate all combinations of flights
+
+        for f1 = gate_flights
+            i = tat_name_set{f1};
+            flight_combinations = nchoosek(setdiff(gate_flights,f1), gateCapacity);
+
+            for idx = 1:size(flight_combinations, 1)
+
+                % Extract flight names
+                j = tat_name_set{flight_combinations(idx, 1)};
+                k = tat_name_set{flight_combinations(idx, 2)};
+                l = tat_name_set{flight_combinations(idx, 3)};
+
+                % Conditions to minimize comparisons
+                GateCapacity2(i, j, k, l) = y1(i, j) + y1(i, k) + y1(i, l) >= 1;
+
+            end
+        end
+
+
     end
 end
 end
