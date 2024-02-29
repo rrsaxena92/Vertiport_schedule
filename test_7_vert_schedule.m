@@ -1,7 +1,13 @@
 clear
 startTime = datetime; fprintf("Start time %s \n", startTime);
+rng(26)
 seedUsed = rng;
 saveFile = 1;
+num_flight = 5;
+fairness_enable = 0;
+P = 0;
+GateNode = 0;
+
 if saveFile
     fprintf("File is going to be saved \n");
 else
@@ -24,7 +30,7 @@ vertical_climb_edge_length_above_TLOF=5*d5; %From TLOF pad to point X
 max_vertical_climb_speed = 8; % 20km/hr is 6m/s which is max speed on taxiways and max vertical climb speed
 
 inclination_climb_edge_length = 20*d5; %From point X to fixed direction
-
+maxSlantClimbSpeed = 17;
 %D is separation distance on taxi where rows are leading and columns are following
 D_sep_taxi = [d1 d2 d3 d4 d5; d2 d2 d3 d4 d5; d3 d3 d3 d4 d5; d4 d4 d4 d4 d5; d5 d5 d5 d5 d5];
 
@@ -51,7 +57,7 @@ F=Twake.*FT;
 cooling_time=[2 4 6 8 10];
 
 global Edges Nodes flight_path_nodes flight_path_edges flight_class operator
-topo_1_dep_dir_2
+topo_1_dep_dir_1
 
 Edges.len  = [edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 
@@ -62,7 +68,6 @@ operator = {'xx','zz','yy','ww','tt','mm','nn','rr'};
 
 flight_set_struct = struct('name',[],'reqTime',[],'direction',[],'nodes',[],'edges',[],'TLOF',[],'fix_direction',[],'taxi_speed',[],'vertical_climb_speed',[],'slant_climb_speed',[], 'class', [], 'coolTime', []);
 
-num_flight = 10;
 flight_req_time = randi(60,[num_flight,1]);
 
 flight_set(num_flight,1) = flight_set_struct;
@@ -86,7 +91,7 @@ for f = 1:num_flight
     flight.edges = flight_path_edges{x};
     flight.taxi_speed=max_edge_taxi_speed;
     flight.vertical_climb_speed=max_vertical_climb_speed;
-    flight.slant_climb_speed=17;
+    flight.slant_climb_speed = maxSlantClimbSpeed;
     flight.class = UAM_class(flight);
     flight.coolTime = cooling_time(flight.class);
 
@@ -139,11 +144,11 @@ W_q  = 10;  % Weight for time spent on TLOF before takeoff
 Wa_c = 7;  % Weight for time spent on fix direction by arrival flight
 Wd_c = 7;  % Weight for time spent on fix direction by departure flight
 W_g  = 2;  % Weight for time spent waiting on gate by departure flight
-Wa_t = 8; % Weight for time spent waiting on taxiing by departure flight
-Wd_t = 8; % Weight for time spent waiting on taxiing by arrival flight
+Wa_t = 8; % Weight for time spent waiting on taxiing by arrival flight
+Wd_t = 8; % Weight for time spent waiting on taxiing by departure flight
 
 global M
-M = ceil(num_flight/10)*200; % Till 10 flights its 200, till 20 flights its 400, till 30 flihts its 600
+M = ceil(num_flight/10 +1)*400; % Till 10 flights its 400, till 20 flights its 800, till 30 flihts its 1200
 
 inputs.Twake = Twake;
 inputs.Edges = Edges;
@@ -250,7 +255,7 @@ fprintf(" 0.1 ");
 
 % Gate out C2
 
-vertiOpt.Constraints.gateOutC1 = optimconstr(dep_name_set); % TODO According to departures
+vertiOpt.Constraints.gateOutC1 = optimconstr(dep_name_set);
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
     g = dep_flight_set(f).nodes(1);
@@ -328,7 +333,7 @@ if ~isempty(arr_flight_set)
 
 
     % land approach Arr C26.2
-    tic
+    
     vertiOpt.Constraints.TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
 
     for f1 = 1:length(arr_flight_set)
@@ -345,10 +350,8 @@ if ~isempty(arr_flight_set)
             end
         end
     end
-    toc
-    tic
     TLOFClearArr = TLOFClearArrConstr(arr_flight_set,M,x_uij);
-    toc
+
     fprintf(" 11 ");
 end
 
@@ -370,6 +373,31 @@ end
 vertiOpt.Constraints.wake = wakeConstr(flight_set, t_iu, x_uij,Twake);
 
 fprintf(" 14 ");
+
+% Fairness constraints
+
+if fairness_enable
+    vertiOpt.Constraints.fairness = optimconstr(dep_name_set);
+
+    if GateNode
+        limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(1)) - x.reqTime, dep_flight_set)))/length(dep_flight_set));
+    else
+        limit = (1+P) * ((sum(arrayfun(@(x) t_iu(x.name, x.nodes(end)) - x.reqTime, dep_flight_set)))/length(dep_flight_set));
+    end
+
+    for f = 1:length(dep_flight_set)
+        i = dep_flight_set(f).name;
+        if GateNode
+            g = dep_flight_set(f).nodes(1);
+            zeroTime = 0;
+        else
+            g = dep_flight_set(f).nodes(end);
+            zeroTime = 0;
+        end
+        vertiOpt.Constraints.fairness(i) = t_iu(i, g) - dep_flight_set(f).reqTime - zeroTime<= limit;
+    end
+    fprintf(" 15 ");
+end
 
 fprintf(" \n ");
 endTime = datetime;
@@ -402,20 +430,23 @@ end
 if saveFile
     datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
     folder = "Results";
-    if isempty(flight_sol)
-        strctTbl = struct2table(flight_set);
-        filename = "flight_set_" + num2str(num_flight) + '_' + datefmt + ".csv";
-        filePath = folder + "//" + filename;
-        writetable(strctTbl,filePath,'Delimiter',',');
-    else
-        strctTbl = struct2table(flight_sol.flight_sol_set);
-        filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt + ".csv";
-        filePath = folder + "//" + filename;
-        writetable(strctTbl,filePath,'Delimiter',',');
-    end
     filename = "seed_" + num2str(num_flight) + '_' + datefmt + ".mat";
     filePath = folder + "//" + filename;
     save(filePath,'seedUsed');
+    if isempty(flight_sol)
+        strctTbl = struct2table(flight_set);
+        filename = "flight_set_" + num2str(num_flight) + '_' + datefmt;
+        ext = ".csv";
+        filePath = folder + "//" + filename + ext;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    else
+        strctTbl = struct2table(flight_sol.flight_sol_set);
+        filename = "flight_sol_" + num2str(num_flight) + '_' + datefmt;
+        ext = ".csv";
+        filePath = folder + "//" + filename+ ext;
+        writetable(strctTbl,filePath,'Delimiter',',');
+    end
+
 end
 
 fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
@@ -626,12 +657,11 @@ y7 = optimconstr(Nodes, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    for f2 = 1:length(flight_set)
+    for f2 = (f1+1):length(flight_set)
         j = flight_set(f2).name;
-        if (f1 ~= f2)
-            common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);
-            y7(common_nodes,i,j) = y_uij(common_nodes,i,j) + y_uij(common_nodes,j,i) == 1;
-        end
+        common_nodes = intersect(flight_set(f1).nodes,flight_set(f2).nodes);
+        y7(common_nodes,i,j) = y_uij(common_nodes,i,j) + y_uij(common_nodes,j,i) == 1;
+
     end
 end
 
@@ -696,7 +726,7 @@ end
 function taxiSeparation1 = taxiseparationConstr(Edges, flight_set, D_sep_taxi, y_uij, t_iu, M)
 
 flight_name_set = [flight_set.name];
-taxiSeparation1 = optimconstr(string(Edges), flight_name_set, flight_name_set);
+taxiSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
@@ -720,7 +750,7 @@ end
 function fixSeparation1 = fixseparationConstr(Edges, flight_set, D_sep_fix, y_uij, t_iu, M)
 
 flight_name_set = [flight_set.name];
-fixSeparation1 = optimconstr(string(Edges), flight_name_set, flight_name_set);
+fixSeparation1 = optimconstr({Edges{:}}, flight_name_set, flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
@@ -773,22 +803,6 @@ for f1 = 1:length(arr_flight_set)
         end
     end
 end
-
-% From CHAT GPT
-arr_name_set = [arr_flight_set.name];
-TLOFClearArr = optimconstr(arr_name_set, arr_name_set);
-[f1,f2] = meshgrid(1:length(arr_flight_set));
-toRemove = tril(ones(length(arr_flight_set)),-1);
-f1 = f1(toRemove == 1); f2 = f2(toRemove == 1);
-r1 = [arr_flight_set(f1).TLOF];
-r2 = [arr_flight_set(f2).TLOF];
-idx = r1 == r2;
-r = r1(idx);
-ca = [arr_flight_set(f2(idx)).nodes(2)]; % According to j flight's plan
-ui1 = [arr_flight_set(f1(idx)).nodes(4)]; % according to i flight's path % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-i = arr_name_set(f1(idx));
-j = arr_name_set(f2(idx));
-TLOFClearArr(i,j) = t_iu(j,ca) >= t_iu(i,ui1) - (1-x_uij(r,i,j))*M;
 end
 
 function TLOFenterDep = TLOFenterDepConstr(dep_flight_set, t_iu)

@@ -6,6 +6,3 @@ test_4_vert_schedule_noX.m : X_ij removed from test_4_vert_schedule.m
 test_5_vert_schedule_2.m : 1st file for common segment experiment
 test_6_vert_schedule_2.m : Loop version of test_5_vert_schedule_2.m
 test_7_vert_schedule.m : All constraints in test_4_vert_schedule.m made into loop fucntion
-test_8_vert_schedule_noX.m : X_ij removed from test_7_vert_schedule.m
-test_9_vert_schedule_ArrDep_NoGate.m : Arrival & departure on same topology, no dummy 0 aircraft (CONSIDER AS BASE)
-test_10_vert_schedule_ArrDep.m : Support for Flights with turn around 
