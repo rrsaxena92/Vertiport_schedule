@@ -108,7 +108,7 @@ for f = 1:num_flight
         flight.DepReqTime =  flight_req_time(f);
         flight.DepNodes = n;
         flight.DepEdges = flight_path_edges_dep{x};
-        flight.Gate = flight.DepNodes{1};%Nodes.gates{strcmp(flight.DepNodes{1},Nodes.gatesEx)};
+        flight.Gate = flight.DepNodes{1};
         flight.DepTLOF  = string(n{length(n)-2});
         flight.DepFix_direction = string(n{length(n)});
 
@@ -286,7 +286,8 @@ if ~isempty(arr_flight_set)
                     % Calculate time difference between reqTime values
                     time_diff = abs(arr_flight_set(f1).ArrReqTime - arr_flight_set(f2).ArrReqTime);
                     if strcmp(arr_flight_set(f1).ArrFix_direction, arr_flight_set(f2).ArrFix_direction) % On same direction
-                        req_time_diff = D_sep_fix(arr_flight_set(f1).class, arr_flight_set(f2).class) / SlantClimbSpeed + extraDelayArr;
+                        actual_speed = inclination_climb_edge_length / (inclination_climb_edge_length / SlantClimbSpeed) - 5;
+                        req_time_diff = D_sep_fix(arr_flight_set(f1).class, arr_flight_set(f2).class) / actual_speed  + extraDelayArr;
                     else % On different direction
                         if diffDirtimeSep == 0
                             continue % No time separation required on differernt directions
@@ -637,7 +638,7 @@ if saveFile
     end
 
 end
-
+fprintf("Num of directions %d\n", length(Nodes.dir));
 fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
 %% Functions
 
@@ -1149,7 +1150,7 @@ for f1 = 1:length(tat_flight_set)
         f2a = arr_name_set == ja;
         f2d = dep_name_set == jd;
         genj = arr_flight_set(f2a).ArrNodes(end);
-        if all(geni{1} == genj{1}) && (f1~=f2)
+        if strcmp(geni{1},genj{1}) && (f1~=f2)
             g = geni; g0 = g0i;
             GateQ_ygenij(i,j) = y_uij(g,ia,ja) == y_uij(g0,i,j);
             g = gexi; gcg = gcgi;

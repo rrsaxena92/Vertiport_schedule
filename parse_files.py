@@ -33,7 +33,8 @@ csv_files = [
 "flight_sol_100_2023_11_23_11_02_44.csv",
 ]
 
-combined_data = throughput(csv_files, folder)
+#combined_data = throughput(csv_files, folder)
+combined_data = combined_delay(csv_files, folder)
 
 
 # Write the combined data to a new CSV file
