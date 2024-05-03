@@ -1,5 +1,4 @@
 clear
-startTime = datetime; fprintf("Start time %s \n", startTime);
 rng(26)
 seedUsed = rng;
 saveFile = 1;
@@ -61,8 +60,8 @@ gateCapacity = 1;
 Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 0;
 Qdelay = 0;
-extraDelayArr = 2.5; %12
-diffDirtimeSep = 6.6; % According to Small t_XR + tot = 6.375s
+extraDelayArr = 0; % 2.5 12
+diffDirtimeSep = 10.4; % According to Small t_XR + tot = 6.375s
 gateCapacity = 3;
 %% FLight set
 
@@ -199,11 +198,14 @@ for f = 1:num_flight
         flight_set = [flight_set flight];
 
         flight.name = name + "_Dep";
-        n = flight_path_nodes_dep{x};
+        % Selecting the nodes only with the Gate same as arrival
+        depGates = find(strcmp(flight.Gate,cellfun(@(x) x{1},  flight_path_nodes_dep,  'UniformOutput',  false)));
+        y = randi(length(depGates));
+        n = flight_path_nodes_dep{depGates(y)};
         flight.gateV = [];
 
         flight.DepNodes = n;
-        flight.DepEdges = flight_path_edges_dep{x};
+        flight.DepEdges = flight_path_edges_dep{depGates(y)};
 
         flight.DepTLOF  = string(n{length(n)-2});
         flight.DepFix_direction = string(n{length(n)});
@@ -286,7 +288,7 @@ if ~isempty(arr_flight_set)
                     % Calculate time difference between reqTime values
                     time_diff = abs(arr_flight_set(f1).ArrReqTime - arr_flight_set(f2).ArrReqTime);
                     if strcmp(arr_flight_set(f1).ArrFix_direction, arr_flight_set(f2).ArrFix_direction) % On same direction
-                        actual_speed = inclination_climb_edge_length / (inclination_climb_edge_length / SlantClimbSpeed) - 5;
+                        actual_speed = inclination_climb_edge_length / ((inclination_climb_edge_length / SlantClimbSpeed) - 5);
                         req_time_diff = D_sep_fix(arr_flight_set(f1).class, arr_flight_set(f2).class) / actual_speed  + extraDelayArr;
                     else % On different direction
                         if diffDirtimeSep == 0
@@ -329,9 +331,9 @@ if ~isempty(arr_flight_set)
                                 dep_flight_set(j).DepReqTime = flight_set(i).DepReqTime;
                                 dep_flight_set(j).ArrReqTime = flight_set(i).ArrReqTime;
                                 k = find(flight_name_set == (name+"_Dep"));
-                                flight_set(k).ArrReqTime = arr_flight_set(f2).ArrReqTime;
+                                flight_set(k).ArrReqTime = arr_flight_set(f1).ArrReqTime;
                                 flight_set(k).DepReqTime = flight_set(i).DepReqTime;
-                                l = find(arr_flight_set(f2).name == flight_name_set);
+                                l = find(arr_flight_set(f1).name == flight_name_set);
                                 flight_set(l).DepReqTime = flight_set(i).DepReqTime;
                             end
                         end
@@ -348,6 +350,7 @@ num_flight_tot = length(flight_set);
 
 fprintf("Num flights %d (%d), dep %d (%d) arr %d (%d) tat %d \n", num_flight_tot,num_flight, length(dep_flight_set), (length(dep_flight_set)-length(tat_flight_set)) , length(arr_flight_set),(length(arr_flight_set)-length(tat_flight_set)), length(tat_flight_set))
 %% Parameters
+startTime = datetime; fprintf("Start time %s \n", startTime);
 
 W_ar = 10;  % Weight for time spent on TLOF after landing
 W_qg = 1;  % Weight for time spent on the GATE Q
@@ -379,8 +382,8 @@ vertiIn = optimexpr(1,arr_name_set);
 
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
-    r = arr_flight_set(f).ArrTLOF;
-    vertiIn(i) = t_iu(i,r) - arr_flight_set(f).ArrReqTime;
+    o = arr_flight_set(f).ArrNodes(2);
+    vertiIn(i) = t_iu(i,o) - arr_flight_set(f).ArrReqTime;
 end
 
 Wapproach = Wa_c*sum(vertiIn);
@@ -400,8 +403,8 @@ Landtime = optimexpr(1,arr_name_set);
 for f = 1:length(arr_flight_set)
     i = arr_flight_set(f).name;
     ui1 = arr_flight_set(f).ArrNodes(4); % Climb_b, Climb_a, LaunchpadNode,1st node....... Last node
-    r = arr_flight_set(f).ArrTLOF;
-    Landtime(i) = t_iu(i,ui1) - t_iu(i,r);
+    o = arr_flight_set(f).ArrNodes(2);
+    Landtime(i) = t_iu(i,ui1) - t_iu(i,o);
 end
 
 WLand = W_ar*sum(Landtime);
@@ -444,8 +447,8 @@ takeOfftime = optimexpr(1,dep_name_set);
 for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
     uiki = dep_flight_set(f).DepNodes(end-3); % ..,Last node, LaunchpadNode, Climb_a, Climb_b
-    r = dep_flight_set(f).DepTLOF; % ..,Last node, LaunchpadNode, Climb_a, Climb_b
-    takeOfftime(i) = t_iu(i,r) - t_iu(i,uiki);
+    o = dep_flight_set(f).DepNodes(end-1); % ..,Last node, LaunchpadNode, Climb_a, Climb_b
+    takeOfftime(i) = t_iu(i,o) - t_iu(i,uiki);
 end
 
 WtakeOff = W_dr*sum(takeOfftime);
@@ -456,7 +459,8 @@ for f = 1:length(dep_flight_set)
     i = dep_flight_set(f).name;
     r = dep_flight_set(f).DepTLOF; % ..,Last node, LaunchpadNode, Climb_a, Climb_b
     cb = dep_flight_set(f).DepFix_direction;
-    climbTime(i) = t_iu(i,cb) - t_iu(i,r);
+    o = dep_flight_set(f).DepNodes(end-1);
+    climbTime(i) = t_iu(i,cb) - t_iu(i,o);
 end
 
 WClimb = Wd_c*sum(climbTime);
@@ -464,6 +468,7 @@ WClimb = Wd_c*sum(climbTime);
 vertiOpt.Objective = (Wapproach + WLand + WtaxiTimeArr + Wtaxiout + Wtime + WtaxiTimeDep + WtakeOff + WClimb)/10;
 
 %% Constraints
+
 fprintf("Formulating constraints.....");
 
 % ARAPR_i Arr C1
@@ -512,15 +517,31 @@ vertiOpt.Constraints.y7 = y7Constr(setdiff(Nodes.all,Nodes.gates),flight_set,y_u
 
 fprintf(" 3 ");
 
+% cR2Xnodes = {'c','R2', 'X'};
+% vertiOpt.Constraints.FCFS = optimconstr(cR2Xnodes,flight_name_set, flight_name_set);
+%
+% for f1 = 1:length(flight_set)
+%     i = flight_set(f1).name;
+%     for f2 = 1:length(flight_set)
+%         j = flight_set(f2).name;
+%         if (f1 ~= f2)
+%             if flight_set(f1).DepReqTime < flight_set(f2).DepReqTime
+%                 vertiOpt.Constraints.FCFS(cR2Xnodes, i,j) = y_uij(cR2Xnodes,i,j) == 1;
+%             end
+%         end
+%     end
+% end
+
+
 % Overtake C18
 
-vertiOpt.Constraints.Overtake = overtakeConstr([arr_flight_set,dep_flight_set],Edges,y_uij);
+vertiOpt.Constraints.Overtake = overtakeConstr([arr_flight_set, dep_flight_set],Edges,y_uij);
 
 fprintf(" 4 ");
 
 % Collission C19
 
-vertiOpt.Constraints.Collison = collisonConstr(string(Edges.all), [arr_flight_set,dep_flight_set], y_uij);
+vertiOpt.Constraints.Collison = collisonConstr(string(Edges.all), [arr_flight_set, dep_flight_set], y_uij);
 
 fprintf(" 5 ");
 
@@ -617,6 +638,7 @@ else
     flight_sol = [];
 end
 %% The End
+
 if saveFile
     datefmt = datestr(startTime, "YYYY_mm_DD_HH_MM_SS");
     folder = "Results";
@@ -636,8 +658,8 @@ if saveFile
         filePath = folder + "//" + filename+ ext;
         writetable(strctTbl,filePath,'Delimiter',',');
     end
-
 end
+
 fprintf("Num of directions %d\n", length(Nodes.dir));
 fprintf("Formulation Time %s Solver time %s \n", Formulationtime, Solveruntime);
 %% Functions
@@ -755,8 +777,6 @@ if length(flight_name_set) == 1
 end
 ytime = optimconstr(Nodes, flight_name_set, flight_name_set);
 
-% for n = 1:length(Nodes)
-%     u = Nodes(n);
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
     for f2 = (f1+1):length(flight_set)
@@ -808,10 +828,10 @@ for f1 = 1:length(flight_set)
         j = flight_set(f2).name;
         if (f1 ~= f2)
             commonEdges =  setdiff(intersect(flight_set(f1).edges,flight_set(f2).edges,"stable"), [Edges.TLOF, Edges.OVF]);
-            if ~isempty(commonEdges)
+            if isempty(commonEdges)
                 continue
             end
-            edges = commonEdges(:);
+            edges = commonEdges;
             edges_split = cellfun(@(e) split(e, '-'), edges, 'UniformOutput', false);
             u = cellfun(@(e) e{1}, edges_split, 'UniformOutput', false);
             v = cellfun(@(e) e{2}, edges_split, 'UniformOutput', false);
@@ -843,12 +863,13 @@ for i = 1:length(Edges)
     edge = Edges(i);
     uv = split(edge, '-');
     reverse_edge = join([uv(2), uv(1)], '-');
+
     % Check if the edge or its reverse edge is already added
     if ~isKey(UniqueEdges, edge) && ~isKey(UniqueEdges, reverse_edge)
         % Add edges and reverse edges to their respective arrays
         edges2 = [edges2; edge];
         ReverseEdges = [ReverseEdges; reverse_edge];
-        
+
         % Mark edges and reverse edges as added
         UniqueEdges(edge) = true;
         UniqueEdges(reverse_edge) = true;
@@ -909,6 +930,7 @@ for f1 = 1:length(flight_set)
         end
     end
 end
+
 end
 
 function fixSeparation1 = fixseparationConstr(Edges, flight_set, D_sep_fix, y_uij, t_iu, M)
@@ -936,6 +958,18 @@ for f1 = 1:length(flight_set)
         end
     end
 end
+    for f2 = 1:length(dep_flight_set)
+            end
+            for e1 = 1:length(commonEdges)
+                e = commonEdges{e1};
+                e_ = split(e,'-');
+                u = e_{1}; v = e_{2};
+                fixSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-y_uij(u,i,j))*M;
+            end
+        end
+    end
+end
+
 end
 
 
@@ -998,15 +1032,46 @@ wakeVortex = optimconstr(Nodes.TLOF, flight_name_set,flight_name_set);
 
 for f1 = 1:length(flight_set)
     i = flight_set(f1).name;
-    r1 = union(string(flight_set(f1).ArrTLOF), string(flight_set(f1).DepTLOF));
-    for f2 = 1:length(flight_set)
+    ArrTLOF_f1 = string(flight_set(f1).ArrTLOF);
+    DepTLOF_f1 = string(flight_set(f1).DepTLOF);
+
+    for f2 = f1+1:length(flight_set)
         j = flight_set(f2).name;
-        r2 = union(string(flight_set(f1).ArrTLOF), string(flight_set(f1).DepTLOF));
-        r = intersect(string(r1),string(r2));
-        if (f1 ~= f2) && ~isempty(r)
+        ArrTLOF_f2 = string(flight_set(f2).ArrTLOF);
+        DepTLOF_f2 = string(flight_set(f2).DepTLOF);
+
+        % Find common arrival and departure TLOFs
+        % Initialize empty arrays
+        rAA = [];
+        rAD = [];
+        rDA = [];
+        rDD = [];
+
+        % Check if arrays are non-empty before intersection
+        if ~isempty(ArrTLOF_f1) && ~isempty(ArrTLOF_f2)
+            rAA = intersect(string(ArrTLOF_f1), string(ArrTLOF_f2));
+        end
+
+        if ~isempty(ArrTLOF_f1) && ~isempty(DepTLOF_f2)
+            rAD = intersect(string(ArrTLOF_f1), string(DepTLOF_f2));
+        end
+
+        if ~isempty(DepTLOF_f1) && ~isempty(ArrTLOF_f2)
+            rDA = intersect(string(flight_set(f1).DepTLOF), string(ArrTLOF_f2));
+        end
+
+        if ~isempty(DepTLOF_f1) && ~isempty(DepTLOF_f2)
+            rDD = intersect(string(flight_set(f1).DepTLOF), string(DepTLOF_f2));
+        end
+
+
+        % Concatenate non-empty arrays
+        r = [rAA; rAD; rDA; rDD];
+
+        if ~isempty(r)
             Rsepij = Twake(flight_set(f1).class, flight_set(f2).class);
             for r1 = 1:length(r)
-                wakeVortex(r(r1), i,j) = t_iu(j,r(r1)) >= t_iu(i,r(r1)) + Rsepij - (1-y_uij(r(r1),i,j))*M;
+                wakeVortex(r(r1), i, j) = t_iu(j, r(r1)) >= t_iu(i, r(r1)) + Rsepij - (1 - y_uij(r(r1), i, j)) * M;
             end
         end
     end
@@ -1176,46 +1241,68 @@ flight_gates = {tat_flight_set.Gate};
 gate_set = unique(flight_gates);
 
 % Initialize optimconstr variables
-y1 = optimvar("y1", tat_name_set, tat_name_set, 'LowerBound', 0, 'UpperBound', 1, 'Type', 'integer');
 GateCapacity1 = optimconstr(tat_name_set, tat_name_set);
 GateCapacity2 = optimconstr(tat_name_set, tat_name_set, tat_name_set, tat_name_set);
+if gateCapacity ==3
+    y1 = optimvar("y1", tat_name_set, tat_name_set, 'LowerBound', 0, 'UpperBound', 1, 'Type', 'integer');
 
-% Loop through gates
-for gate_index = 1:length(gate_set)
-    g = gate_set{gate_index};
-    gate_flights = find(ismember(flight_gates, g));
+    % Loop through gates
+    for gate_index = 1:length(gate_set)
+        g = gate_set{gate_index};
+        gate_flights = find(ismember(flight_gates, g));
 
-    if length(gate_flights) > 3
+        if length(gate_flights) > 3
+            for f1 = 1:length(gate_flights)
+                i = tat_name_set{gate_flights(f1)};
+                for f2 = (f1+1):length(gate_flights)
+                    j = tat_name_set{gate_flights(f2)};
+                    if f1 ~= f2
+                        GateCapacity1(i, j) = t_iu(i, g + "c0") >= t_iu(j, g + "c1") - (1 - y_uij(g + "c0", j, i))' * M - (1 - y1(i, j))' * M;
+                        GateCapacity1(j, i) = t_iu(j, g + "c0") >= t_iu(i, g + "c1") - (1 - y_uij(g + "c0", i, j))' * M - (1 - y1(j, i))' * M;
+                    end
+                end
+            end
+
+            % Generate all combinations of flights
+
+            for f1 = gate_flights
+                i = tat_name_set{f1};
+                flight_combinations = nchoosek(setdiff(gate_flights,f1), gateCapacity);
+
+                for idx = 1:size(flight_combinations, 1)
+
+                    % Extract flight names
+                    j = tat_name_set{flight_combinations(idx, 1)};
+                    k = tat_name_set{flight_combinations(idx, 2)};
+                    l = tat_name_set{flight_combinations(idx, 3)};
+
+                    % Conditions to minimize comparisons
+                    GateCapacity2(i, j, k, l) = y1(i, j) + y1(i, k) + y1(i, l) >= 1;
+
+                end
+            end
+
+
+        end
+    end
+elseif gateCapacity ==1
+
+    % Loop through gates
+    for gate_index = 1:length(gate_set)
+        g = gate_set{gate_index};
+        gate_flights = find(ismember(flight_gates, g));
+
+
         for f1 = 1:length(gate_flights)
             i = tat_name_set{gate_flights(f1)};
             for f2 = (f1+1):length(gate_flights)
                 j = tat_name_set{gate_flights(f2)};
                 if f1 ~= f2
-                    GateCapacity1(i, j) = t_iu(i, g + "c0") >= t_iu(j, g + "c1") - (1 - y_uij(g + "c0", j, i))' * M - (1 - y1(i, j))' * M;
-                    GateCapacity1(j, i) = t_iu(j, g + "c0") >= t_iu(i, g + "c1") - (1 - y_uij(g + "c0", i, j))' * M - (1 - y1(j, i))' * M;
+                    GateCapacity1(i, j) = t_iu(i, g + "c0") >= t_iu(j, g + "c1") - (1 - y_uij(g + "c0", j, i))' * M;
+                    GateCapacity1(j, i) = t_iu(j, g + "c0") >= t_iu(i, g + "c1") - (1 - y_uij(g + "c0", i, j))' * M;
                 end
             end
         end
-
-        % Generate all combinations of flights
-
-        for f1 = gate_flights
-            i = tat_name_set{f1};
-            flight_combinations = nchoosek(setdiff(gate_flights,f1), gateCapacity);
-
-            for idx = 1:size(flight_combinations, 1)
-
-                % Extract flight names
-                j = tat_name_set{flight_combinations(idx, 1)};
-                k = tat_name_set{flight_combinations(idx, 2)};
-                l = tat_name_set{flight_combinations(idx, 3)};
-
-                % Conditions to minimize comparisons
-                GateCapacity2(i, j, k, l) = y1(i, j) + y1(i, k) + y1(i, l) >= 1;
-
-            end
-        end
-
 
     end
 end
