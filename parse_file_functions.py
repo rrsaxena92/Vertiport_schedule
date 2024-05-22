@@ -21,10 +21,10 @@ def combined_delay(csv_files, folder):
         # Append the two columns into a single series
         dep_fix_direction = data['DepFix_direction']
         arr_fix_direction = data['ArrFix_direction']
-        appended_series = dep_fix_direction.append(arr_fix_direction, ignore_index=True)
+        appended_series = dep_fix_direction._append(arr_fix_direction, ignore_index=True)
 
         # Remove values 0 and 'nan' from the series
-        fix_directions = appended_series[(appended_series != '0') & (~pd.isna(appended_series))]
+        fix_directions = appended_series[(appended_series != '0') & (~pd.isna(appended_series)) & (appended_series != 0)]
 
         # num_directions = len(data['fix_direction'].unique())
         num_directions = len(fix_directions.unique())
@@ -38,7 +38,7 @@ def combined_delay(csv_files, folder):
                                   'Delay': delay})
 
         # Append the file data to the combined data
-        combined_data = combined_data.append(file_data, ignore_index=True)
+        combined_data = combined_data._append(file_data, ignore_index=True)
 
     # sort Values according to Num flights then directions
     combined_data.sort_values(by=["Num_flights", "Num_directions"], inplace=True)
@@ -81,7 +81,7 @@ def throughput(csv_files, folder):
 
         # Calculate average TLOF time
         avg_tlof_time = calculate_avg_TLOF_time(df['ArrTLOFtime'].values, df['DepTLOFtime'].values)
-        throughput = int(np.floor(60/avg_tlof_time))
+        throughput = (60/avg_tlof_time)
 
         # Create a new DataFrame with the extracted information
         file_data = pd.DataFrame({'Num_flights': num_flights,

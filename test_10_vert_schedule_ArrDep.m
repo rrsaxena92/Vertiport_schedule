@@ -55,13 +55,13 @@ TAT = [90, 120, 150, 210, 300];
 global Edges Nodes  flight_class operator descentDelay Qdelay gateCapacity
 
 topo_1_arr_dep_dir_4
-gateCapacity = 1;
+
 
 Edges.len  = [gate_edge_len, edge_length_before_TLOF, vertical_climb_edge_length_above_TLOF, inclination_climb_edge_length];
 descentDelay = 0;
 Qdelay = 0;
 extraDelayArr = 0; % 2.5 12
-diffDirtimeSep = 10.4; % According to Small t_XR + tot = 6.375s
+diffDirtimeSep = 6.5; % According to Small t_XR + tot = 6.375s
 gateCapacity = 3;
 %% FLight set
 
@@ -605,7 +605,7 @@ if ~isempty(tat_flight_set)
 
     fprintf(" 13.2 ");
 
-    [vertiOpt.Constraints.GateCapacity1, vertiOpt.Constraints.GateCapacity2] = GateCapacityConstr(tat_flight_set,t_iu, y_uij);
+    [vertiOpt.Constraints.GateCapacity1, vertiOpt.Constraints.GateCapacity2] = GateCapacityConstr(tat_flight_set, t_iu, y_uij);
 
     fprintf(" 13.3 ");
 end
@@ -953,17 +953,6 @@ for f1 = 1:length(flight_set)
                 u = e_{1}; v = e_{2};
                 D_uv = get_edge_length(commonEdges{e1});
                 Dsep_ij = D_sep_fix(flight_set(f1).class, flight_set(f2).class);
-                fixSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-y_uij(u,i,j))*M;
-            end
-        end
-    end
-end
-    for f2 = 1:length(dep_flight_set)
-            end
-            for e1 = 1:length(commonEdges)
-                e = commonEdges{e1};
-                e_ = split(e,'-');
-                u = e_{1}; v = e_{2};
                 fixSeparation1(e,i,j) = t_iu(j,u) >= t_iu(i,u) + (Dsep_ij/D_uv)*(t_iu(i,v) - t_iu(i,u)) - (1-y_uij(u,i,j))*M;
             end
         end
