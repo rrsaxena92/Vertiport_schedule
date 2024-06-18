@@ -46,6 +46,55 @@ def combined_delay(csv_files, folder):
     return combined_data
     
 
+def combined_delay_bound(csv_files, folder):
+    # Initialize an empty DataFrame for the combined data
+    combined_data = pd.DataFrame(columns=['Num_flights', 'Num_directions', 'Delay'])
+
+    # Iterate over each CSV file
+    for file in csv_files:
+        
+        file_path = folder + "/" + file
+        print(file_path)
+        # Read the CSV file
+        data = pd.read_csv(file_path)
+
+        # Count the number of flights (unique names)
+        num_flights = len(data['name'].unique())
+
+        # Count the number of unique directions
+        # Append the two columns into a single series
+        dep_fix_direction = data['DepFix_direction']
+        arr_fix_direction = data['ArrFix_direction']
+        appended_series = dep_fix_direction._append(arr_fix_direction, ignore_index=True)
+
+        # Remove values 0 and 'nan' from the series
+        fix_directions = appended_series[(appended_series != '0') & (~pd.isna(appended_series)) & (appended_series != 0)]
+
+        # num_directions = len(data['fix_direction'].unique())
+        num_directions = len(fix_directions.unique())
+
+        # Extract the 'delay' column as it is
+        delay = data['delay']
+        
+        max_gate_delay = data['MaxDelay']
+
+        # Create a new DataFrame with the extracted information
+        file_data = pd.DataFrame({'Num_flights': num_flights,
+                                  'Num_directions': num_directions,
+                                  'Delay': delay,
+                                  'MaxDelay' : max_gate_delay
+                                  })
+
+        # Append the file data to the combined data
+        combined_data = combined_data._append(file_data, ignore_index=True)
+
+    # sort Values according to Num flights then directions
+    combined_data.sort_values(by=["Num_flights", "Num_directions"], inplace=True)
+    
+    return combined_data
+    
+
+
 def calculate_avg_TLOF_time(arr_tlof_time, dep_tlof_time):
     # Combine non-zero ArrTLOFtime and DepTLOFtime into a single array and sort it
     combined_tlof_time = np.sort(np.concatenate([arr_tlof_time[arr_tlof_time != 0], dep_tlof_time[dep_tlof_time != 0]]))

@@ -35,6 +35,10 @@ flight_sol_struct = struct("name",[],"type",[],"ArrReqTime",[],"DepReqTime",[],"
     "DepTLOFtime",[],"DepGateTime",[],"DepfixTimeTaken",[],"DepTLOFexitTimeTaken",[],"DepTLOFTimeTaken",[],"DepTaxiTimeTaken",[],"DepGateDelay",[],...
     "DepTotalTimeTaken",[],"DepTaxidelay",[],"DepOFVdelay",[],"DepfixDelay",[],"DepZeroDelayTime",[],"TotalTimeTaken",[],"zeroDelayTime",[],"delay",[]);
 
+if isfield(flight_set, 'MaxDelay')
+    flight_sol_struct.MaxDelay = [];
+end
+
 flight_sol = [];
 
 for f = 1:num_flight
@@ -47,7 +51,11 @@ for f = 1:num_flight
     flight.class   = flight_set(f).class;
     flight.TOT   = flight_set(f).TOT;
     flight.TAT  =  flight_set(f).TAT;
-
+    
+    if isfield(flight_set, 'MaxDelay')
+        flight.MaxDelay = flight_set(f).MaxDelay;
+    end
+    
     flight.nodes = flight_set(f).nodes;
     flight.edges = flight_set(f).edges;
 
