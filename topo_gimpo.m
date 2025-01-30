@@ -36,3 +36,200 @@ Edges.dir  = {'T1D1-O1','T1D2-O1','O1-T1D1','O1-T1D2', 'T2D1-O2', 'O2-T2D1', 'T3
 Edges.all  = [[Edges.gate], [Edges.taxi], [Edges.TLOF], [Edges.OVF], [Edges.dir]];
 
 [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = generate_vert_path(Nodes, Edges);
+
+conf = 1;
+
+if conf == 1
+    [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = rearrangePaths(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep);
+elseif conf == 2
+    [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = configuration2(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep);
+elseif conf == 3
+    [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = configuration3(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep);
+elseif conf == 4
+    [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = configuration4(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep);
+end
+
+%% Configuration Functions
+function [new_flight_path_nodes_arr, new_flight_path_edges_arr, new_flight_path_nodes_dep, new_flight_path_edges_dep] = rearrangePaths(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep)
+% Ensure inputs are cell arrays of equal length
+assert(length(flight_path_nodes_arr) == length(flight_path_nodes_dep), 'Mismatch in arrival and departure paths.');
+assert(length(flight_path_edges_arr) == length(flight_path_edges_dep), 'Mismatch in arrival and departure edges.');
+
+% Initialize new path arrays
+new_flight_path_nodes_arr = flight_path_nodes_arr;
+new_flight_path_edges_arr = flight_path_edges_arr;
+new_flight_path_nodes_dep = flight_path_nodes_dep;
+new_flight_path_edges_dep = flight_path_edges_dep;
+
+% Loop through all paths
+for i = 1:length(flight_path_nodes_arr)
+    % Ensure continuity: Last node of arrival should match first node of departure
+    for j = 1:length(flight_path_nodes_dep)
+        firstArrNode = flight_path_nodes_arr{i}{1};
+        lastArrNode = flight_path_nodes_arr{i}{end};
+        firstDepNode = flight_path_nodes_dep{j}{1};
+        lastDepNode = flight_path_nodes_dep{j}{end};
+
+        if strcmp(lastArrNode, firstDepNode) && strcmp(firstArrNode, lastDepNode)
+            % Rearrange the departure path
+            new_flight_path_nodes_dep{i} = flight_path_nodes_dep{j};
+            new_flight_path_edges_dep{i} = flight_path_edges_dep{j};
+        end
+    end
+end
+end
+
+
+function [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = ...
+        configuration2(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep)
+
+    % Define restricted connections (T1, T2 to G11-G20)
+    restrictedArrivals = {};
+    restrictedDepartures = {};
+    for g = 11:20
+        restrictedArrivals = [restrictedArrivals; {'T1', ['G' num2str(g)]}];
+        restrictedArrivals = [restrictedArrivals; {'T2', ['G' num2str(g)]}];
+        restrictedDepartures = [restrictedDepartures; {'T1', ['G' num2str(g)]}];
+        restrictedDepartures = [restrictedDepartures; {'T2', ['G' num2str(g)]}];        
+    end
+    
+    % Define restricted connections for departures (T3, T4 to G1-G20)
+    
+    for g = 1:10
+        restrictedArrivals = [restrictedArrivals; {'T3', ['G' num2str(g)]}];
+        restrictedArrivals = [restrictedArrivals; {'T4', ['G' num2str(g)]}];        
+        restrictedDepartures = [restrictedDepartures; {'T3', ['G' num2str(g)]}];
+        restrictedDepartures = [restrictedDepartures; {'T4', ['G' num2str(g)]}];
+    end
+
+    % Remove arrival paths containing restricted connections
+    validArrIdx = true(1, length(flight_path_nodes_arr));
+    for i = 1:length(flight_path_nodes_arr)
+        pathNodes = flight_path_nodes_arr{i};
+        for j = 1:length(restrictedArrivals)
+            if any(strcmp(pathNodes(3), restrictedArrivals{j, 1})) && any(strcmp(pathNodes(end), restrictedArrivals{j, 2}))
+                validArrIdx(i) = false;
+                break;
+            end
+        end
+    end
+    flight_path_nodes_arr = flight_path_nodes_arr(validArrIdx);
+    flight_path_edges_arr = flight_path_edges_arr(validArrIdx);
+
+    % Remove departure paths containing restricted connections
+    validDepIdx = true(1, length(flight_path_nodes_dep));
+    for i = 1:length(flight_path_nodes_dep)
+        pathNodes = flight_path_nodes_dep{i};
+        for j = 1:length(restrictedDepartures)
+            if any(strcmp(pathNodes(end-2), restrictedDepartures{j, 1})) && any(strcmp(pathNodes(1), restrictedDepartures{j, 2}))
+                validDepIdx(i) = false;
+                break;
+            end
+        end
+    end
+    flight_path_nodes_dep = flight_path_nodes_dep(validDepIdx);
+    flight_path_edges_dep = flight_path_edges_dep(validDepIdx);
+
+    [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = rearrangePaths(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep);
+end
+
+
+function [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = ...
+        configuration3(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep)
+
+    restrictedDepartures = {};    
+    % Define restricted connections (T1, T2 to G11-G20)
+    restrictedArrivals = {};
+    
+    for g = 1:20
+        restrictedArrivals = [restrictedArrivals; {'T1', ['G' num2str(g)]}];
+        restrictedArrivals = [restrictedArrivals; {'T4', ['G' num2str(g)]}];     
+    end
+    
+    % Define restricted connections for departures (T3, T4 to G1-G20)
+    
+    for g = 1:20      
+        restrictedDepartures = [restrictedDepartures; {'T2', ['G' num2str(g)]}];
+        restrictedDepartures = [restrictedDepartures; {'T3', ['G' num2str(g)]}];
+    end
+
+    % Remove arrival paths containing restricted connections
+    validArrIdx = true(1, length(flight_path_nodes_arr));
+    for i = 1:length(flight_path_nodes_arr)
+        pathNodes = flight_path_nodes_arr{i};
+        for j = 1:length(restrictedArrivals)
+            if any(strcmp(pathNodes(3), restrictedArrivals{j, 1})) && any(strcmp(pathNodes(end), restrictedArrivals{j, 2}))
+                validArrIdx(i) = false;
+                break;
+            end
+        end
+    end
+    flight_path_nodes_arr = flight_path_nodes_arr(validArrIdx);
+    flight_path_edges_arr = flight_path_edges_arr(validArrIdx);
+
+    % Remove departure paths containing restricted connections
+    validDepIdx = true(1, length(flight_path_nodes_dep));
+    for i = 1:length(flight_path_nodes_dep)
+        pathNodes = flight_path_nodes_dep{i};
+        for j = 1:length(restrictedDepartures)
+            if any(strcmp(pathNodes(end-2), restrictedDepartures{j, 1})) && any(strcmp(pathNodes(1), restrictedDepartures{j, 2}))
+                validDepIdx(i) = false;
+                break;
+            end
+        end
+    end
+    flight_path_nodes_dep = flight_path_nodes_dep(validDepIdx);
+    flight_path_edges_dep = flight_path_edges_dep(validDepIdx);
+
+end
+
+
+function [flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep] = ...
+        configuration4(flight_path_nodes_arr, flight_path_edges_arr, flight_path_nodes_dep, flight_path_edges_dep)
+
+    restrictedDepartures = {};    
+    % Define restricted connections (T1, T2 to G11-G20)
+    restrictedArrivals = {};
+    
+    for g = 1:20
+        restrictedArrivals = [restrictedArrivals; {'T2', ['G' num2str(g)]}];
+        restrictedArrivals = [restrictedArrivals; {'T3', ['G' num2str(g)]}];     
+    end
+    
+    % Define restricted connections for departures (T3, T4 to G1-G20)
+    
+    for g = 1:20      
+        restrictedDepartures = [restrictedDepartures; {'T1', ['G' num2str(g)]}];
+        restrictedDepartures = [restrictedDepartures; {'T4', ['G' num2str(g)]}];
+    end
+
+    % Remove arrival paths containing restricted connections
+    validArrIdx = true(1, length(flight_path_nodes_arr));
+    for i = 1:length(flight_path_nodes_arr)
+        pathNodes = flight_path_nodes_arr{i};
+        for j = 1:length(restrictedArrivals)
+            if any(strcmp(pathNodes(3), restrictedArrivals{j, 1})) && any(strcmp(pathNodes(end), restrictedArrivals{j, 2}))
+                validArrIdx(i) = false;
+                break;
+            end
+        end
+    end
+    flight_path_nodes_arr = flight_path_nodes_arr(validArrIdx);
+    flight_path_edges_arr = flight_path_edges_arr(validArrIdx);
+
+    % Remove departure paths containing restricted connections
+    validDepIdx = true(1, length(flight_path_nodes_dep));
+    for i = 1:length(flight_path_nodes_dep)
+        pathNodes = flight_path_nodes_dep{i};
+        for j = 1:length(restrictedDepartures)
+            if any(strcmp(pathNodes(end-2), restrictedDepartures{j, 1})) && any(strcmp(pathNodes(1), restrictedDepartures{j, 2}))
+                validDepIdx(i) = false;
+                break;
+            end
+        end
+    end
+    flight_path_nodes_dep = flight_path_nodes_dep(validDepIdx);
+    flight_path_edges_dep = flight_path_edges_dep(validDepIdx);
+
+end
+
